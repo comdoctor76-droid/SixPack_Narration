@@ -730,7 +730,9 @@ export default function App() {
   const [masterOnly, setMasterOnly] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showContinueModal, setShowContinueModal] = useState(false);
+  const [showNoRecords, setShowNoRecords] = useState(false);
   const pageHistoryRef = useRef([]);
+  const wakeLockRef = useRef(null);
   const [pendingEvalText, setPendingEvalText] = useState("");
   const [testMode, setTestMode] = useState(false); // true=테스트, false=연습
   const recRef = useRef(null);
@@ -749,7 +751,7 @@ export default function App() {
   })();
 
   const loadHistory = async () => {
-    try { await initDB(); const arr = await getDB().load(); setHistory(arr || []); } catch { setHistory([]); }
+    try { await initDB(); const arr = await getDB().load(); setHistory(arr || []); return arr || []; } catch { setHistory([]); return []; }
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadHistory(); }, []);
@@ -864,6 +866,7 @@ export default function App() {
       r.start();
       setIsRec(true); setTranscript(""); setResults(null); tRef.current = ""; setRecTime(0);
       timerRef.current = setInterval(() => setRecTime(p => p + 1), 1000);
+      if (navigator.wakeLock) { navigator.wakeLock.request("screen").then(lock => { wakeLockRef.current = lock; }).catch(() => {}); }
     } catch (err) {
       console.error("SR error:", err);
       setError("음성인식을 시작할 수 없습니다."); setMode("text");
@@ -874,6 +877,7 @@ export default function App() {
     const ref = recRef.current; recRef.current = null;
     if (ref) { ref.onend = null; ref.stop(); }
     setIsRec(false); if (timerRef.current) clearInterval(timerRef.current);
+    if (wakeLockRef.current) { wakeLockRef.current.release().catch(() => {}); wakeLockRef.current = null; }
     const raw = tRef.current.trim();
     if (raw) {
       const cleaned = cleanTranscript(raw);
@@ -944,7 +948,7 @@ export default function App() {
       <>
       <div style={S.root}><div style={S.wrap}>
         <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.11</div>
+          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.12</div>
         </div>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 14, color: "#F97316", fontWeight: 700, marginBottom: 4 }}>현대해상</div>
@@ -976,10 +980,28 @@ export default function App() {
           <button onClick={handleLogin} style={{ width: "100%", padding: 15, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 12, color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", marginTop: 4 }}>시작하기 →</button>
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-          <button onClick={() => { loadHistory(); navigate("history"); }} style={{ flex: 1, padding: 12, background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, color: "#666", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>📝 기록</button>
+          <button onClick={async () => {
+            const finalName = nameInput === "__MANUAL__" ? manualNameInput.trim() : nameInput;
+            if (finalName) { const emp = getEmpList(selBranch).find(e => e.n === finalName); setUserName(finalName); setEmpId(emp ? emp.c : empIdInput.trim()); }
+            const all = await loadHistory();
+            if (finalName && all.filter(h => h.name === finalName).length === 0) { setShowNoRecords(true); return; }
+            navigate("history");
+          }} style={{ flex: 1, padding: 12, background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, color: "#666", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>📝 기록</button>
           <button onClick={() => { loadHistory(); navigate("stats"); }} style={{ flex: 1, padding: 12, background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, color: "#666", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>📊 통계</button>
           <button onClick={() => { if (adminMode) { loadHistory(); navigate("admin"); setAdminSelected(new Set()); } else { setShowAdminLogin(true); setAdminPw(""); } }} style={{ padding: "12px 16px", background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, color: "#999", fontSize: 12, cursor: "pointer" }}>🔒</button>
         </div>
+
+        {/* 기록 없음 팝업 */}
+        {showNoRecords && (
+          <div style={S.overlay} onClick={() => setShowNoRecords(false)}>
+            <div style={S.modal} onClick={e => e.stopPropagation()}>
+              <div style={{ fontSize: 40, marginBottom: 12, textAlign: "center" }}>📭</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#222", marginBottom: 8, textAlign: "center" }}>기록이 없습니다</div>
+              <div style={{ fontSize: 13, color: "#999", marginBottom: 20, textAlign: "center", lineHeight: 1.6 }}>아직 저장된 연습 기록이 없습니다.<br/>연습을 시작해보세요!</div>
+              <button onClick={() => setShowNoRecords(false)} style={{ width: "100%", padding: 13, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>확인</button>
+            </div>
+          </div>
+        )}
 
         {/* Name Picker Popup */}
         {showNamePicker && (
