@@ -594,7 +594,7 @@ function DraggableRefreshBtn() {
     });
   };
   const onMouseUp = (e) => {
-    if (!moved.current) window.location.reload();
+    if (dragging.current && !moved.current) window.location.reload();
     dragging.current = false;
   };
 
@@ -615,7 +615,7 @@ function DraggableRefreshBtn() {
     e.preventDefault();
   };
   const onTouchEnd = () => {
-    if (!moved.current) window.location.reload();
+    if (dragging.current && !moved.current) window.location.reload();
     dragging.current = false;
   };
 
