@@ -871,7 +871,7 @@ export default function App() {
     } else setError("음성이 인식되지 않았습니다.");
   };
 
-  const doEval = async (text) => {
+  const doEval = async (text, afterSave) => {
     setError("");
     let cpsToUse;
     if (testMode) {
@@ -886,9 +886,10 @@ export default function App() {
     const cr = evaluate(text, cpsToUse, refText);
     const score = Math.round(cr.reduce((s, r) => s + r.score, 0));
     const p = cr.filter(r => r.full).length;
-    setResults({ score, checkResults: cr, pageIdx: testMode ? -1 : refPage, isTest: testMode });
+    if (!afterSave) setResults({ score, checkResults: cr, pageIdx: testMode ? -1 : refPage, isTest: testMode });
     await saveScore(score, p, cr.length, cr.map(c => ({ l: c.label, p: c.passed, f: c.full, s: c.score, m: c.matched, t: c.total })), text, PACK.title, testMode ? -1 : refPage);
-    setPage("result");
+    if (afterSave) afterSave();
+    else setPage("result");
   };
 
   const navigate = (newPage) => { pageHistoryRef.current.push(page); setPage(newPage); };
@@ -930,7 +931,7 @@ export default function App() {
       <>
       <div style={S.root}><div style={S.wrap}>
         <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.08</div>
+          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.09</div>
         </div>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 14, color: "#F97316", fontWeight: 700, marginBottom: 4 }}>현대해상</div>
@@ -1878,8 +1879,8 @@ export default function App() {
                   <div style={{ fontSize: 16, fontWeight: 700, color: "#222", marginBottom: 8 }}>📊 평가 저장</div>
                   <div style={{ fontSize: 13, color: "#666", marginBottom: 16 }}>현재 연습 내용을 저장하고 평가하시겠습니까?</div>
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={() => { setShowSaveConfirm(false); doEval(pendingEvalText); }} style={{ flex: 1, padding: 13, background: "#F97316", border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>저장 & 평가</button>
-                    <button onClick={() => { setShowSaveConfirm(false); setRefPage(Math.min(slideImages.length-1,refPage+1)); }} style={{ flex: 1, padding: 13, background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 10, color: "#666", fontSize: 14, cursor: "pointer" }}>다음 페이지</button>
+                    <button onClick={() => { setShowSaveConfirm(false); doEval(pendingEvalText, () => { loadHistory(); navigate("history"); }); }} style={{ flex: 1, padding: 13, background: "#F97316", border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>저장하고 기록보기</button>
+                    <button onClick={() => { setShowSaveConfirm(false); doEval(pendingEvalText, () => { setRefPage(Math.min(slideImages.length-1, refPage+1)); setTranscript(""); setManualText(""); setRecTime(0); setError(""); window.scrollTo(0, 0); }); }} style={{ flex: 1, padding: 13, background: `linear-gradient(135deg,${C},${C}CC)`, border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>저장 & 다음장 연습</button>
                   </div>
                 </>)}
               </div>
