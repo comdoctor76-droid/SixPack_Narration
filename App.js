@@ -668,12 +668,24 @@ function DraggableRefreshBtn() {
 }
 
 export default function App() {
-  const [selRegion, setSelRegion] = useState("");
-  const [selCenter, setSelCenter] = useState("");
-  const [selBranch, setSelBranch] = useState("");
-  const [nameInput, setNameInput] = useState("");
-  const [manualNameInput, setManualNameInput] = useState("");
-  const [empIdInput, setEmpIdInput] = useState("");
+  const [selRegion, setSelRegion] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem("sp_login")||"{}"); return Date.now()-s.ts<86400000 ? s.region||"" : ""; } catch { return ""; }
+  });
+  const [selCenter, setSelCenter] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem("sp_login")||"{}"); return Date.now()-s.ts<86400000 ? s.center||"" : ""; } catch { return ""; }
+  });
+  const [selBranch, setSelBranch] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem("sp_login")||"{}"); return Date.now()-s.ts<86400000 ? s.branch||"" : ""; } catch { return ""; }
+  });
+  const [nameInput, setNameInput] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem("sp_login")||"{}"); return Date.now()-s.ts<86400000 ? s.nameInput||"" : ""; } catch { return ""; }
+  });
+  const [manualNameInput, setManualNameInput] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem("sp_login")||"{}"); return Date.now()-s.ts<86400000 ? s.manualName||"" : ""; } catch { return ""; }
+  });
+  const [empIdInput, setEmpIdInput] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem("sp_login")||"{}"); return Date.now()-s.ts<86400000 ? s.empIdInput||"" : ""; } catch { return ""; }
+  });
   const [empSearch, setEmpSearch] = useState("");
   const [showNamePicker, setShowNamePicker] = useState(false);
   const [page, setPage] = useState("login");
@@ -780,6 +792,7 @@ export default function App() {
     const emp = getEmpList(selBranch).find(e => e.n === finalName);
     setUserName(finalName);
     setEmpId(emp ? emp.c : empIdInput.trim());
+    try { localStorage.setItem("sp_login", JSON.stringify({ region: selRegion, center: selCenter, branch: selBranch, nameInput, manualName: manualNameInput, empIdInput, ts: Date.now() })); } catch {}
     setError(""); navigate("select");
   };
 
@@ -931,7 +944,7 @@ export default function App() {
       <>
       <div style={S.root}><div style={S.wrap}>
         <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.10</div>
+          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.11</div>
         </div>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 14, color: "#F97316", fontWeight: 700, marginBottom: 4 }}>현대해상</div>
