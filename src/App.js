@@ -765,7 +765,7 @@ export default function App() {
     await initDB();
     let all = [];
     try { all = await getDB().load() || []; } catch {}
-    all.unshift({ id: Date.now(), name: userName, empId, region: selRegion, center: selCenter, branch: selBranch, score, passed, total, pack: packTitle || PACK.title, pageIdx: pageIdx != null ? pageIdx : refPage, date: new Date().toLocaleString("ko-KR"), details, spokenText: (spokenText||"").slice(0,5000), recTime, isTest: testMode });
+    all.unshift({ id: Date.now(), name: userName, empId, region: selRegion, center: selCenter, branch: selBranch, score, passed, total, pack: packTitle || PACK.title, pageIdx: pageIdx != null ? pageIdx : refPage, date: new Date().toLocaleString("ko-KR"), details, spokenText: (spokenText||""), recTime, isTest: testMode });
     if (all.length > 1000) all = all.slice(0, 1000);
     try { await getDB().save(all); } catch (e) { console.error("Save:", e); }
     setHistory(all);
@@ -794,21 +794,17 @@ export default function App() {
     const result = [];
     let i = 0;
     while (i < n) {
-      let skipped = false;
-      // 현재 위치부터 최대 8단어를 찾아 뒤에 같은 시퀀스가 있으면 건너뜀
-      const maxLen = Math.min(8, n - i - 2);
-      for (let len = maxLen; len >= 2; len--) {
-        let found = false;
-        for (let j = i + 1; j <= n - len; j++) {
-          let match = true;
-          for (let k = 0; k < len; k++) {
-            if (words[i + k] !== words[j + k]) { match = false; break; }
-          }
-          if (match) { i = j; skipped = true; found = true; break; }
+      let bestStart = i;
+      let bestLen = 0;
+      for (let j = i + 1; j < n; j++) {
+        if (words[j] === words[i]) {
+          let len = 1;
+          while (i + len < n && j + len < n && words[i + len] === words[j + len]) len++;
+          if (len >= bestLen) { bestLen = len; bestStart = j; }
         }
-        if (found) break;
       }
-      if (!skipped) { result.push(words[i]); i++; }
+      if (bestStart > i) { i = bestStart; }
+      else { result.push(words[i]); i++; }
     }
     return result.join(' ');
   };
@@ -934,7 +930,7 @@ export default function App() {
       <>
       <div style={S.root}><div style={S.wrap}>
         <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.04</div>
+          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.07</div>
         </div>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 14, color: "#F97316", fontWeight: 700, marginBottom: 4 }}>현대해상</div>
