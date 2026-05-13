@@ -717,6 +717,8 @@ export default function App() {
   const [masterList, setMasterList] = useState([]); // 고객컨설팅마스터과정 교육생
   const [masterOnly, setMasterOnly] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [showContinueModal, setShowContinueModal] = useState(false);
+  const pageHistoryRef = useRef([]);
   const [pendingEvalText, setPendingEvalText] = useState("");
   const [testMode, setTestMode] = useState(false); // true=테스트, false=연습
   const recRef = useRef(null);
@@ -778,7 +780,7 @@ export default function App() {
     const emp = getEmpList(selBranch).find(e => e.n === finalName);
     setUserName(finalName);
     setEmpId(emp ? emp.c : empIdInput.trim());
-    setError(""); setPage("select");
+    setError(""); navigate("select");
   };
 
   const fmt = s => `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
@@ -893,8 +895,17 @@ export default function App() {
     setPage("result");
   };
 
-  const goHome = () => setPage("login");
-  const goTest = () => { setPage("test"); setTab("practice"); setResults(null); setTranscript(""); setManualText(""); setRecTime(0); setError(""); };
+  const navigate = (newPage) => { pageHistoryRef.current.push(page); setPage(newPage); };
+  const goBack = () => { const prev = pageHistoryRef.current.pop(); setPage(prev || "login"); };
+  const goHome = () => { pageHistoryRef.current = []; setPage("login"); };
+  const goTest = () => { navigate("test"); setTab("practice"); setResults(null); setTranscript(""); setManualText(""); setRecTime(0); setError(""); };
+
+  const PACK_KEYS = Object.keys(PACKS);
+  const currentPackIdx = PACK_KEYS.indexOf(selectedPack);
+  const isLastPage = refPage >= (PACK?.pages?.length ?? 1) - 1;
+  const isLastPack = currentPackIdx >= PACK_KEYS.length - 1;
+  const nextPackKey = !isLastPack ? PACK_KEYS[currentPackIdx + 1] : null;
+  const nextPackTitle = nextPackKey ? PACKS[nextPackKey].title : null;
 
   const adminDeleteSelected = async () => {
     const newH = history.filter(h => !adminSelected.has(h.id));
@@ -955,9 +966,9 @@ export default function App() {
           <button onClick={handleLogin} style={{ width: "100%", padding: 15, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 12, color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", marginTop: 4 }}>시작하기 →</button>
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-          <button onClick={() => { loadHistory(); setPage("history"); }} style={{ flex: 1, padding: 12, background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, color: "#666", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>📝 기록</button>
-          <button onClick={() => { loadHistory(); setPage("stats"); }} style={{ flex: 1, padding: 12, background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, color: "#666", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>📊 통계</button>
-          <button onClick={() => { if (adminMode) { loadHistory(); setPage("admin"); setAdminSelected(new Set()); } else { setShowAdminLogin(true); setAdminPw(""); } }} style={{ padding: "12px 16px", background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, color: "#999", fontSize: 12, cursor: "pointer" }}>🔒</button>
+          <button onClick={() => { loadHistory(); navigate("history"); }} style={{ flex: 1, padding: 12, background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, color: "#666", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>📝 기록</button>
+          <button onClick={() => { loadHistory(); navigate("stats"); }} style={{ flex: 1, padding: 12, background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, color: "#666", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>📊 통계</button>
+          <button onClick={() => { if (adminMode) { loadHistory(); navigate("admin"); setAdminSelected(new Set()); } else { setShowAdminLogin(true); setAdminPw(""); } }} style={{ padding: "12px 16px", background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, color: "#999", fontSize: 12, cursor: "pointer" }}>🔒</button>
         </div>
 
         {/* Name Picker Popup */}
@@ -986,11 +997,11 @@ export default function App() {
             <div style={S.modal} onClick={e => e.stopPropagation()}>
               <div style={{ fontSize: 16, fontWeight: 700, color: "#222", marginBottom: 12 }}>🔒 관리자 로그인</div>
               <input type="password" value={adminPw} onChange={e => setAdminPw(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") { if (adminPw === "2051") { setAdminMode(true); setShowAdminLogin(false); setError(""); loadHistory(); setPage("admin"); setAdminSelected(new Set()); } else { setAdminPw(""); setError("비밀번호 오류"); } } }}
+                onKeyDown={e => { if (e.key === "Enter") { if (adminPw === "2051") { setAdminMode(true); setShowAdminLogin(false); setError(""); loadHistory(); navigate("admin"); setAdminSelected(new Set()); } else { setAdminPw(""); setError("비밀번호 오류"); } } }}
                 placeholder="비밀번호" autoFocus style={{ width: "100%", padding: 14, background: "#f9f9f9", border: "1px solid #e5e5e5", borderRadius: 10, color: "#222", fontSize: 16, textAlign: "center", letterSpacing: 8, outline: "none", boxSizing: "border-box", marginBottom: 12 }} />
               {error && <div style={S.errorBox}>{error}</div>}
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => { if (adminPw === "2051") { setAdminMode(true); setShowAdminLogin(false); setError(""); loadHistory(); setPage("admin"); setAdminSelected(new Set()); } else { setAdminPw(""); setError("비밀번호 오류"); } }}
+                <button onClick={() => { if (adminPw === "2051") { setAdminMode(true); setShowAdminLogin(false); setError(""); loadHistory(); navigate("admin"); setAdminSelected(new Set()); } else { setAdminPw(""); setError("비밀번호 오류"); } }}
                   style={{ flex: 1, padding: 12, background: "#F97316", border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>확인</button>
                 <button onClick={() => { setShowAdminLogin(false); setError(""); }} style={{ flex: 1, padding: 12, background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 10, color: "#666", fontSize: 14, cursor: "pointer" }}>취소</button>
               </div>
@@ -1020,7 +1031,7 @@ export default function App() {
               const nums = ["한","두","세","네","다섯","여섯","일곱","여덟"];
               const pageWord = (nums[p.pages.length-1]||p.pages.length) + "가지 항목";
               return (
-                <button key={k} onClick={() => { setSelectedPack(k); setTestMode(false); setPage("test"); setTab("practice"); setTranscript(""); setManualText(""); setResults(null); setRecTime(0); setError(""); setMode("mic"); setRefPage(0); }}
+                <button key={k} onClick={() => { setSelectedPack(k); setTestMode(false); navigate("test"); setTab("practice"); setTranscript(""); setManualText(""); setResults(null); setRecTime(0); setError(""); setMode("mic"); setRefPage(0); }}
                   style={{ padding: "12px 10px", background: "#fff", border: `2px solid ${p.color}22`, borderRadius: 12, cursor: "pointer", textAlign: "left" }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: "#222" }}><span style={{ fontSize: 11, color: p.color, marginRight: 4 }}>{p.icon}</span>{p.title}</div>
                   <div style={{ fontSize: 10, color: "#999", marginTop: 3 }}>{pageWord} · 핵심 체크 키워드 {p.checkpoints.length}가지</div>
@@ -1034,7 +1045,7 @@ export default function App() {
             <div style={{ fontSize: 14, fontWeight: 700, color: "#222", marginBottom: 10 }}>📝 테스트 받기</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {Object.entries(PACKS).map(([k, p]) => (
-                <button key={k} onClick={() => { setSelectedPack(k); setTestMode(true); setPage("test"); setTab("practice"); setTranscript(""); setManualText(""); setResults(null); setRecTime(0); setError(""); setMode("mic"); setRefPage(0); }}
+                <button key={k} onClick={() => { setSelectedPack(k); setTestMode(true); navigate("test"); setTab("practice"); setTranscript(""); setManualText(""); setResults(null); setRecTime(0); setError(""); setMode("mic"); setRefPage(0); }}
                   style={{ padding: "12px 10px", background: "#FFF7ED", border: "2px solid #FDBA74", borderRadius: 12, cursor: "pointer", textAlign: "left" }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: "#EA580C" }}><span style={{ fontSize: 11, marginRight: 4 }}>{p.icon}</span>{p.title}</div>
                   <div style={{ fontSize: 10, color: "#999", marginTop: 3 }}>전체 {p.checkpoints.length}개 체크포인트 평가</div>
@@ -1553,7 +1564,7 @@ export default function App() {
     return (
       <div style={S.root}><div style={S.wrap}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-          <button onClick={goTest} style={S.backBtn}>←</button>
+          <button onClick={goBack} style={S.backBtn}>←</button>
           <div style={{ fontSize: 20, fontWeight: 700, color: "#222", flex: 1 }}>{testMode ? "📝 내 테스트 기록" : "📝 내 기록"}</div>
           <HomeBtn />
         </div>
@@ -1616,7 +1627,7 @@ export default function App() {
     return (
       <div style={S.root}><div style={S.wrap}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-          <button onClick={goTest} style={S.backBtn}>←</button>
+          <button onClick={goBack} style={S.backBtn}>←</button>
           <div style={{ fontSize: 20, fontWeight: 700, color: "#222", flex: 1 }}>📊 내 통계</div>
           <HomeBtn />
         </div>
@@ -1699,10 +1710,48 @@ export default function App() {
           })}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={goTest} style={{ flex: 1, padding: 14, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>{results.isTest ? "📝 계속 테스트" : "🔄 계속 연습"}</button>
-          <button onClick={() => { loadHistory(); setPage("history"); }} style={{ flex: 1, padding: 14, background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, color: "#666", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>{results.isTest ? "📝 테스트 기록" : "📝 기록"}</button>
+          <button onClick={() => { if (results.isTest) { goTest(); } else { setShowContinueModal(true); } }} style={{ flex: 1, padding: 14, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>{results.isTest ? "📝 계속 테스트" : "🔄 계속 연습"}</button>
+          <button onClick={() => { loadHistory(); navigate("history"); }} style={{ flex: 1, padding: 14, background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, color: "#666", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>{results.isTest ? "📝 테스트 기록" : "📝 기록"}</button>
         </div>
         <div style={{ marginTop: 12 }}><HomeBtn /></div>
+
+        {/* 계속 연습 확인 모달 */}
+        {showContinueModal && (
+          <div style={S.overlay} onClick={() => setShowContinueModal(false)}>
+            <div style={S.modal} onClick={e => e.stopPropagation()}>
+              {isLastPage ? (
+                isLastPack ? (
+                  <>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: "#222", marginBottom: 8 }}>🎉 모든 화법 연습 완료!</div>
+                    <div style={{ fontSize: 13, color: "#666", marginBottom: 20 }}>6가지 화법을 모두 연습했습니다.<br />처음으로 돌아갈까요?</div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => { setShowContinueModal(false); goHome(); }} style={{ flex: 1, padding: 13, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>예</button>
+                      <button onClick={() => setShowContinueModal(false)} style={{ flex: 1, padding: 13, background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 10, color: "#666", fontSize: 14, cursor: "pointer" }}>아니오</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: "#222", marginBottom: 8 }}>✅ {PACK.title} 연습 완료!</div>
+                    <div style={{ fontSize: 13, color: "#666", marginBottom: 20 }}><span style={{ color: "#F97316", fontWeight: 700 }}>{nextPackTitle}</span>으로 넘어갈까요?</div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => { setShowContinueModal(false); setSelectedPack(nextPackKey); setRefPage(0); pageHistoryRef.current.push("result"); setPage("test"); setTab("practice"); setResults(null); setTranscript(""); setManualText(""); setRecTime(0); setError(""); }} style={{ flex: 1, padding: 13, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>예</button>
+                      <button onClick={() => setShowContinueModal(false)} style={{ flex: 1, padding: 13, background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 10, color: "#666", fontSize: 14, cursor: "pointer" }}>아니오</button>
+                    </div>
+                  </>
+                )
+              ) : (
+                <>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "#222", marginBottom: 8 }}>📖 다음 페이지 연습</div>
+                  <div style={{ fontSize: 13, color: "#666", marginBottom: 20 }}>{PACK.title} <span style={{ color: "#F97316", fontWeight: 700 }}>{refPage + 2}페이지</span>를 연습할까요?</div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => { setShowContinueModal(false); setRefPage(refPage + 1); pageHistoryRef.current.push("result"); setPage("test"); setTab("practice"); setResults(null); setTranscript(""); setManualText(""); setRecTime(0); setError(""); }} style={{ flex: 1, padding: 13, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>예</button>
+                    <button onClick={() => setShowContinueModal(false)} style={{ flex: 1, padding: 13, background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 10, color: "#666", fontSize: 14, cursor: "pointer" }}>아니오</button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div></div>
     );
   }
@@ -1711,7 +1760,7 @@ export default function App() {
   return (
     <div style={S.root}><div style={S.wrap}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-        <button onClick={() => setPage("select")} style={S.backBtn}>←</button>
+        <button onClick={goBack} style={S.backBtn}>←</button>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 17, fontWeight: 700, color: testMode ? "#EA580C" : C }}>{testMode ? "📝 " : ""}{PACK.title}{testMode ? " 테스트" : ""}</div>
           <div style={{ fontSize: 12, color: "#999" }}>👤 {userName} · {selBranch}</div>
