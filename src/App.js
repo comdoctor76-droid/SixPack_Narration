@@ -931,7 +931,7 @@ export default function App() {
       <>
       <div style={S.root}><div style={S.wrap}>
         <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.09</div>
+          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.10</div>
         </div>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 14, color: "#F97316", fontWeight: 700, marginBottom: 4 }}>현대해상</div>
@@ -1802,13 +1802,13 @@ export default function App() {
       {(tab === "practice" || testMode) && (
         <>
           {/* 진행 안내 */}
-          <div style={{ background: testMode ? "#FFF7ED" : C+"10", border: `1px solid ${testMode ? "#FDBA74" : C+"25"}`, borderRadius: 12, padding: "10px 14px", marginBottom: 12, textAlign: "center" }}>
+          <div style={{ background: testMode ? "#FFF7ED" : isRec ? "#FEF2F2" : C+"10", border: `1px solid ${testMode ? "#FDBA74" : isRec ? "#FECACA" : C+"25"}`, borderRadius: 12, padding: "10px 14px", marginBottom: 12, textAlign: "center" }}>
             {testMode ? (<>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#EA580C" }}>📝 {PACK.title} 테스트</div>
               <div style={{ fontSize: 12, color: "#999", marginTop: 2 }}>전체 {PACK.checkpoints.length}개 체크포인트를 평가합니다</div>
             </>) : (<>
-              <div style={{ fontSize: 14, fontWeight: 700, color: C }}>{refPage+1}번째 키워드 연습중</div>
-              <div style={{ fontSize: 12, color: "#999", marginTop: 2 }}>한 페이지씩 훈련해보세요</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: isRec ? "#EF4444" : C }}>{isRec ? `🔴 ${refPage+1}번째 키워드 녹음중` : `${refPage+1}번째 키워드 연습중`}</div>
+              <div style={{ fontSize: 12, color: isRec ? "#EF4444" : "#999", marginTop: 2 }}>{isRec ? "화법을 말한 후 ⏹ 버튼을 누르세요" : "연습을 시작하려면 녹음버튼을 누르세요"}</div>
             </>)}
           </div>
 
