@@ -930,7 +930,7 @@ export default function App() {
       <>
       <div style={S.root}><div style={S.wrap}>
         <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.07</div>
+          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.08</div>
         </div>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 14, color: "#F97316", fontWeight: 700, marginBottom: 4 }}>현대해상</div>
@@ -1831,12 +1831,6 @@ export default function App() {
                 <button onClick={stopRec} style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(135deg,#EF4444,#DC2626)", border: "none", fontSize: 28, cursor: "pointer", color: "#fff" }}>⏹</button>
               )}
               <p style={{ fontSize: 12, color: "#999", marginTop: 10, marginBottom: 0 }}>{isRec ? "화법을 말한 후 ⏹ 버튼을 누르세요" : "🎙️ 버튼을 눌러 녹음 시작"}</p>
-              {transcript && (
-                <div style={{ marginTop: 12, textAlign: "left", background: "#f9f9f9", borderRadius: 10, padding: 10, maxHeight: 120, overflowY: "auto" }}>
-                  <div style={{ fontSize: 11, color: "#999", marginBottom: 4, fontWeight: 700 }}>📝 실시간 인식</div>
-                  <p style={{ fontSize: 13, color: "#555", lineHeight: 1.8, margin: 0 }}>{transcript}</p>
-                </div>
-              )}
             </div>
           )}
 
@@ -1851,6 +1845,14 @@ export default function App() {
               <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid #eee" }}>
                 <img src={slideImages[refPage]} alt={`slide ${refPage+1}`} style={{ width: "100%", display: "block" }} />
               </div>
+            </div>
+          )}
+
+          {/* 실시간 음성 인식 텍스트 - 이미지 아래 고정 표시 */}
+          {mode === "mic" && transcript && (
+            <div style={{ ...S.card, padding: "10px 14px", marginTop: 0 }}>
+              <div style={{ fontSize: 11, color: "#999", marginBottom: 4, fontWeight: 700 }}>📝 실시간 인식</div>
+              <p style={{ fontSize: 13, color: "#555", lineHeight: 1.8, margin: 0 }}>{transcript}</p>
             </div>
           )}
 
