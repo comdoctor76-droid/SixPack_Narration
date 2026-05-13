@@ -700,9 +700,6 @@ export default function App() {
   const [testView, setTestView] = useState("all"); // all | completed | notCompleted | applicants
   const [testSelected, setTestSelected] = useState(new Set());
   const [testUserSel, setTestUserSel] = useState(new Set());
-  const [tfRegion, setTfRegion] = useState("");
-  const [tfCenter, setTfCenter] = useState("");
-  const [tfBranch, setTfBranch] = useState("");
   const [tfSearch, setTfSearch] = useState("");
   const [passPackKeys, setPassPackKeys] = useState(Object.keys(PACKS)); // 수료 평가 대상 화법
   const [passMinScore, setPassMinScore] = useState(50); // 수료 기준 점수 // 교육생 통째 선택
@@ -713,17 +710,10 @@ export default function App() {
   const [afSearch, setAfSearch] = useState("");
   const [afTimeFrom, setAfTimeFrom] = useState("");
   const [afTimeTo, setAfTimeTo] = useState("");
-  const [afDateFrom, setAfDateFrom] = useState("");
-  const [afDateTo, setAfDateTo] = useState("");
-  const [stRegion, setStRegion] = useState("");
-  const [stCenter, setStCenter] = useState("");
-  const [stBranch, setStBranch] = useState("");
+  const [afDateFrom, setAfDateFrom] = useState(() => { const now = new Date(); const yyyy = now.getFullYear(); const mm = String(now.getMonth() + 1).padStart(2, "0"); return `${yyyy}-${mm}-01`; });
+  const [afDateTo, setAfDateTo] = useState(() => { const now = new Date(); const yyyy = now.getFullYear(); const mm = String(now.getMonth() + 1).padStart(2, "0"); const lastDay = new Date(yyyy, now.getMonth() + 1, 0).getDate(); return `${yyyy}-${mm}-${String(lastDay).padStart(2, "0")}`; });
   const [stPerson, setStPerson] = useState("");
   const [stSort, setStSort] = useState("count");
-  const [stTimeFrom, setStTimeFrom] = useState("");
-  const [stTimeTo, setStTimeTo] = useState("");
-  const [stDateFrom, setStDateFrom] = useState("");
-  const [stDateTo, setStDateTo] = useState("");
   const [masterList, setMasterList] = useState([]); // 고객컨설팅마스터과정 교육생
   const [masterOnly, setMasterOnly] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
@@ -1123,19 +1113,17 @@ export default function App() {
     const selectFiltered = () => setAdminSelected(new Set(afList.map(h=>h.id)));
 
     // 통계
-    const stCenters = stRegion && ORG[stRegion] ? Object.keys(ORG[stRegion]) : [];
-    const stBranches = stRegion && stCenter && ORG[stRegion]?.[stCenter] ? ORG[stRegion][stCenter] : [];
     // 참여자 목록 (전체 기록에서)
     const allParticipants = new Set(history.map(h => h.name));
 
     const stFiltered = history.filter(h => {
-      if (stRegion && h.region !== stRegion) return false;
-      if (stCenter && h.center !== stCenter) return false;
-      if (stBranch && h.branch !== stBranch) return false;
+      if (afRegion && h.region !== afRegion) return false;
+      if (afCenter && h.center !== afCenter) return false;
+      if (afBranch && h.branch !== afBranch) return false;
       if (stPerson && h.name !== stPerson) return false;
       if (masterOnly && !masterList.includes(h.name)) return false;
-      if (!timeMatch(h.date, stTimeFrom, stTimeTo)) return false;
-      if (!dateMatch(h.date, stDateFrom, stDateTo)) return false;
+      if (!timeMatch(h.date, afTimeFrom, afTimeTo)) return false;
+      if (!dateMatch(h.date, afDateFrom, afDateTo)) return false;
       return true;
     });
     const stPackStats = Object.entries(PACKS).map(([k,p]) => {
@@ -1181,29 +1169,29 @@ export default function App() {
               <button key={id} onClick={() => setAdminTab(id)} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: adminTab===id ? "#fff" : "transparent", color: adminTab===id ? "#222" : "#999", boxShadow: adminTab===id ? "0 1px 3px rgba(0,0,0,0.1)" : "none" }}>{label}</button>
             ))}
           </div>
-        </div>
-
-        {/* ───── 기록관리 탭 ───── */}
-        {adminTab === "records" && (<>
-          <div style={{ ...S.card, padding: "12px 14px", marginBottom: 10 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#666", marginBottom: 8 }}>필터</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-              <select value={afRegion} onChange={e => { setAfRegion(e.target.value); setAfCenter(""); setAfBranch(""); }} style={{ padding: "6px 10px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }}>
+          {/* ───── 공통 필터 ───── */}
+          <div style={{ ...S.card, padding: "10px 12px", marginBottom: 6 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+              <select value={afRegion} onChange={e => { setAfRegion(e.target.value); setAfCenter(""); setAfBranch(""); setStPerson(""); }} style={{ padding: "6px 10px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }}>
                 <option value="">전체 지역단</option>{Object.keys(ORG).map(r => <option key={r} value={r}>{r}</option>)}
               </select>
-              {afRegion && <select value={afCenter} onChange={e => { setAfCenter(e.target.value); setAfBranch(""); }} style={{ padding: "6px 10px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }}>
+              {afRegion && <select value={afCenter} onChange={e => { setAfCenter(e.target.value); setAfBranch(""); setStPerson(""); }} style={{ padding: "6px 10px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }}>
                 <option value="">전체 센터</option>{(ORG[afRegion] ? Object.keys(ORG[afRegion]) : []).map(c => <option key={c} value={c}>{c}</option>)}
               </select>}
-              {afCenter && <select value={afBranch} onChange={e => setAfBranch(e.target.value)} style={{ padding: "6px 10px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }}>
+              {afCenter && <select value={afBranch} onChange={e => { setAfBranch(e.target.value); setStPerson(""); }} style={{ padding: "6px 10px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }}>
                 <option value="">전체 지점</option>{((afRegion && ORG[afRegion]?.[afCenter]) || []).map(b => <option key={b} value={b}>{b}</option>)}
               </select>}
-              <select value={afScoreMin} onChange={e => setAfScoreMin(e.target.value)} style={{ padding: "6px 10px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }}>
-                <option value="">전체 점수</option>
-                <option value="ge80">80점 이상</option><option value="ge60">60점 이상</option><option value="ge40">40점 이상</option>
-                <option value="lt40">40점 미만</option><option value="lt20">20점 미만</option><option value="lt10">10점 미만</option>
-              </select>
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 8 }}>
+            {adminTab === "records" && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+                <select value={afScoreMin} onChange={e => setAfScoreMin(e.target.value)} style={{ padding: "6px 10px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }}>
+                  <option value="">전체 점수</option>
+                  <option value="ge80">80점 이상</option><option value="ge60">60점 이상</option><option value="ge40">40점 이상</option>
+                  <option value="lt40">40점 미만</option><option value="lt20">20점 미만</option><option value="lt10">10점 미만</option>
+                </select>
+              </div>
+            )}
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
               <span style={{ fontSize: 11, color: "#999" }}>📅</span>
               <input type="date" value={afDateFrom} onChange={e => setAfDateFrom(e.target.value)} style={{ padding: "4px 8px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }} />
               <span style={{ fontSize: 11, color: "#999" }}>~</span>
@@ -1212,8 +1200,14 @@ export default function App() {
               <input value={afTimeFrom} onChange={e => setAfTimeFrom(e.target.value.replace(/[^0-9:]/g,"").slice(0,5))} placeholder="00:00" maxLength={5} style={{ padding: "4px 8px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none", width: 50, textAlign: "center" }} />
               <span style={{ fontSize: 11, color: "#999" }}>~</span>
               <input value={afTimeTo} onChange={e => setAfTimeTo(e.target.value.replace(/[^0-9:]/g,"").slice(0,5))} placeholder="23:59" maxLength={5} style={{ padding: "4px 8px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none", width: 50, textAlign: "center" }} />
-              {(afTimeFrom || afTimeTo || afDateFrom || afDateTo) && <button onClick={() => { setAfTimeFrom(""); setAfTimeTo(""); setAfDateFrom(""); setAfDateTo(""); }} style={{ padding: "4px 8px", background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 8, color: "#999", fontSize: 10, cursor: "pointer" }}>초기화</button>}
+              <button onClick={() => { const n = new Date(); const y = n.getFullYear(); const m = String(n.getMonth()+1).padStart(2,"0"); const ld = new Date(y, n.getMonth()+1, 0).getDate(); setAfTimeFrom(""); setAfTimeTo(""); setAfDateFrom(`${y}-${m}-01`); setAfDateTo(`${y}-${m}-${String(ld).padStart(2,"0")}`); }} style={{ padding: "4px 8px", background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 8, color: "#999", fontSize: 10, cursor: "pointer" }}>초기화</button>
             </div>
+          </div>
+        </div>
+
+        {/* ───── 기록관리 탭 ───── */}
+        {adminTab === "records" && (<>
+          <div style={{ ...S.card, padding: "10px 14px", marginBottom: 10 }}>
             <div style={{ display: "flex", gap: 6 }}>
               <button onClick={selectFiltered} style={{ flex: 1, padding: 8, background: "#FFF7ED", border: "1px solid #FDBA74", borderRadius: 8, color: "#EA580C", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>필터 결과 전체선택 ({afList.length}건)</button>
               <button onClick={() => setAdminSelected(new Set())} style={{ padding: "8px 12px", background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 8, color: "#888", fontSize: 11, cursor: "pointer" }}>해제</button>
@@ -1252,15 +1246,9 @@ export default function App() {
 
         {/* ───── 통계 탭 ───── */}
         {adminTab === "stats" && (<>
-          {/* 필터 */}
-          <div style={{ ...S.card, padding: "12px 14px", marginBottom: 10 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#666", marginBottom: 8 }}>조직 선택</div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-              <div style={{ flex: 1 }}><Select label="" value={stRegion} onChange={v => { setStRegion(v); setStCenter(""); setStBranch(""); setStPerson(""); }} options={Object.keys(ORG)} placeholder="지역단" /></div>
-              <div style={{ flex: 1 }}><Select label="" value={stCenter} onChange={v => { setStCenter(v); setStBranch(""); setStPerson(""); }} options={stCenters} placeholder="비전센터" /></div>
-            </div>
-            {stCenter && <div style={{ marginBottom: 6 }}><Select label="" value={stBranch} onChange={v => { setStBranch(v); setStPerson(""); }} options={stBranches} placeholder="지점" /></div>}
-            {stPersons.length > 0 && (
+          {/* 참여자 필터 */}
+          {stPersons.length > 0 && (
+            <div style={{ ...S.card, padding: "12px 14px", marginBottom: 10 }}>
               <div>
                 <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
                   <div style={{ fontSize: 10, fontWeight: 600, color: "#999", flex: 1 }}><span style={{ color: "#F97316" }}>●</span>참여 <span style={{ color: "#ddd" }}>●</span>미참여 · ☑고객마스터과정 체크</div>
@@ -1283,23 +1271,8 @@ export default function App() {
                 </div>
                 {masterList.length > 0 && <div style={{ fontSize: 10, color: "#F97316", marginTop: 4 }}>⭐ 마스터과정: {masterList.length}명</div>}
               </div>
-            )}
-          </div>
-
-          {/* 날짜/시간 필터 */}
-          <div style={{ ...S.card, padding: "10px 14px", marginBottom: 10 }}>
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 11, color: "#999" }}>📅</span>
-              <input type="date" value={stDateFrom} onChange={e => setStDateFrom(e.target.value)} style={{ padding: "4px 8px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }} />
-              <span style={{ fontSize: 11, color: "#999" }}>~</span>
-              <input type="date" value={stDateTo} onChange={e => setStDateTo(e.target.value)} style={{ padding: "4px 8px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }} />
-              <span style={{ fontSize: 11, color: "#999" }}>⏰</span>
-              <input value={stTimeFrom} onChange={e => setStTimeFrom(e.target.value.replace(/[^0-9:]/g,"").slice(0,5))} placeholder="00:00" maxLength={5} style={{ padding: "4px 8px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none", width: 50, textAlign: "center" }} />
-              <span style={{ fontSize: 11, color: "#999" }}>~</span>
-              <input value={stTimeTo} onChange={e => setStTimeTo(e.target.value.replace(/[^0-9:]/g,"").slice(0,5))} placeholder="23:59" maxLength={5} style={{ padding: "4px 8px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none", width: 50, textAlign: "center" }} />
-              {(stTimeFrom || stTimeTo || stDateFrom || stDateTo) && <button onClick={() => { setStTimeFrom(""); setStTimeTo(""); setStDateFrom(""); setStDateTo(""); }} style={{ padding: "4px 8px", background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 8, color: "#999", fontSize: 10, cursor: "pointer" }}>초기화</button>}
             </div>
-          </div>
+          )}
 
           {/* 요약 */}
           <div style={{ ...S.card, display: "flex", gap: 8, marginBottom: 10 }}>
@@ -1426,15 +1399,13 @@ export default function App() {
           const packTitles = packEntries.map(([,p]) => p.title);
           const passPacks = packEntries.filter(([k]) => passPackKeys.includes(k));
           const passPackTitles = passPacks.map(([,p]) => p.title);
-          const tfCenters = tfRegion && ORG[tfRegion] ? Object.keys(ORG[tfRegion]) : [];
-          const tfBranches = tfRegion && tfCenter && ORG[tfRegion]?.[tfCenter] ? ORG[tfRegion][tfCenter] : [];
           const reqCount = Math.min(3, passPackTitles.length);
 
           const testMap = {};
           testRecords.forEach(h => {
-            if (tfRegion && h.region !== tfRegion) return;
-            if (tfCenter && h.center !== tfCenter) return;
-            if (tfBranch && h.branch !== tfBranch) return;
+            if (afRegion && h.region !== afRegion) return;
+            if (afCenter && h.center !== afCenter) return;
+            if (afBranch && h.branch !== afBranch) return;
             if (tfSearch && !(h.name||"").includes(tfSearch)) return;
             const uid = h.name+"_"+(h.empId||"");
             if (!testMap[uid]) testMap[uid] = { name: h.name, empId: h.empId, branch: h.branch, region: h.region, center: h.center, packs: {}, records: [] };
@@ -1511,17 +1482,6 @@ export default function App() {
 
           return (<>
             <div style={{ ...S.card, padding: "10px 12px", marginBottom: 8 }}>
-              <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                <select value={tfRegion} onChange={e => { setTfRegion(e.target.value); setTfCenter(""); setTfBranch(""); }} style={{ flex: 1, padding: "5px 8px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }}>
-                  <option value="">전체 지역단</option>{Object.keys(ORG).map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
-                {tfRegion && <select value={tfCenter} onChange={e => { setTfCenter(e.target.value); setTfBranch(""); }} style={{ flex: 1, padding: "5px 8px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }}>
-                  <option value="">전체 센터</option>{tfCenters.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>}
-                {tfCenter && <select value={tfBranch} onChange={e => setTfBranch(e.target.value)} style={{ flex: 1, padding: "5px 8px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }}>
-                  <option value="">전체 지점</option>{tfBranches.map(b => <option key={b} value={b}>{b}</option>)}
-                </select>}
-              </div>
               <input value={tfSearch} onChange={e => setTfSearch(e.target.value)} placeholder="🔍 교육생 이름 검색..." style={{ width: "100%", padding: "6px 10px", background: "#fff", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none", boxSizing: "border-box" }} />
             </div>
 
