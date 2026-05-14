@@ -889,10 +889,8 @@ export default function App() {
     if (wakeLockRef.current) { wakeLockRef.current.release().catch(() => {}); wakeLockRef.current = null; }
     const raw = tRef.current.trim();
     if (raw) {
-      const cleaned = cleanTranscript(raw);
-      setPendingEvalText(cleaned);
-      tRef.current = cleaned;
-      setTranscript(cleaned);
+      setPendingEvalText(raw);
+      setTranscript(raw);
       setShowSaveConfirm(true);
     } else setError("음성이 인식되지 않았습니다.");
   };
@@ -957,7 +955,7 @@ export default function App() {
       <>
       <div style={S.root}><div style={S.wrap}>
         <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.15</div>
+          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.16</div>
         </div>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 14, color: "#F97316", fontWeight: 700, marginBottom: 4 }}>현대해상</div>
@@ -1289,7 +1287,7 @@ export default function App() {
                 {isOpen && (
                   <div style={{ padding: "0 10px 10px 36px" }}>
                     {h.details && h.details.map((d,di) => { const clr = d.f ? "#10B981" : d.p ? "#F59E0B" : "#EF4444"; return <div key={di} style={{ display: "flex", gap: 4, fontSize: 10, color: "#666", padding: "2px 0" }}><span style={{ color: clr, fontWeight: 700 }}>{d.f?"✓":d.p?"△":"✗"}</span><span style={{ flex: 1 }}>{d.l}</span>{d.s!=null && <span style={{ color: clr }}>{d.s.toFixed(1)}</span>}</div>; })}
-                    {h.spokenText && <div style={{ marginTop: 4, padding: 6, background: "#f9f9f9", borderRadius: 6, fontSize: 10, color: "#666", lineHeight: 1.6, maxHeight: 100, overflowY: "auto" }}>{h.spokenText}</div>}
+                    {h.spokenText && <div style={{ marginTop: 4, padding: 6, background: "#f9f9f9", borderRadius: 6, fontSize: 10, color: "#666", lineHeight: 1.6, maxHeight: 100, overflowY: "auto" }}>{cleanTranscript(h.spokenText)}</div>}
                   </div>
                 )}
               </div>); })}
@@ -1429,7 +1427,7 @@ export default function App() {
                           {h.spokenText && (
                             <div style={{ marginTop: 6, padding: 8, background: "#fff", borderRadius: 6, border: "1px solid #eee" }}>
                               <div style={{ fontSize: 10, fontWeight: 700, color: "#F97316", marginBottom: 3 }}>🗣️ 녹음 내용</div>
-                              <div style={{ fontSize: 11, color: "#666", lineHeight: 1.7, maxHeight: 120, overflowY: "auto", whiteSpace: "pre-wrap" }}>{h.spokenText}</div>
+                              <div style={{ fontSize: 11, color: "#666", lineHeight: 1.7, maxHeight: 120, overflowY: "auto", whiteSpace: "pre-wrap" }}>{cleanTranscript(h.spokenText)}</div>
                             </div>
                           )}
                         </div>
@@ -1523,7 +1521,7 @@ export default function App() {
                         </div>
                         <div style={{ fontSize: 9, color: "#999" }}>{h.date}{h.recTime ? ` · ${fmt(h.recTime)}` : ""}</div>
                         {h.details && h.details.map((d,di) => { const cl = d.f ? "#10B981" : d.p ? "#F59E0B" : "#EF4444"; return <div key={di} style={{ display: "flex", gap: 3, fontSize: 9, color: "#666", padding: "1px 0" }}><span style={{ color: cl, fontWeight: 700 }}>{d.f?"✓":d.p?"△":"✗"}</span><span style={{ flex: 1 }}>{d.l}</span>{d.s!=null && <span style={{ color: cl }}>{d.s.toFixed(1)}</span>}</div>; })}
-                        {h.spokenText && <div style={{ marginTop: 3, padding: 4, background: "#fff", borderRadius: 4, fontSize: 9, color: "#666", lineHeight: 1.5, maxHeight: 60, overflowY: "auto" }}>{h.spokenText}</div>}
+                        {h.spokenText && <div style={{ marginTop: 3, padding: 4, background: "#fff", borderRadius: 4, fontSize: 9, color: "#666", lineHeight: 1.5, maxHeight: 60, overflowY: "auto" }}>{cleanTranscript(h.spokenText)}</div>}
                       </div>
                     ))}
                   </div>
