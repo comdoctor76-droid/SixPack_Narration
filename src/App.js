@@ -550,7 +550,8 @@ function evaluate(text, cps, referenceText) {
   return cps.map((cp, i) => {
     const keys = cpKeys[i];
     const total = keys.length;
-    const matchCount = keys.filter(k => lc.includes(k)).length;
+    const normLc = lc.replace(/\s/g, "");
+    const matchCount = keys.filter(k => lc.includes(k) || normLc.includes(k.replace(/\s/g, ""))).length;
     const maxScore = total * pointPerKey;
     const ratio = total > 0 ? matchCount / total : 0;
     const generousRatio = matchCount > 0 ? 0.4 + 0.6 * ratio : 0; // 1개 이상 포함 시 최소 40%
