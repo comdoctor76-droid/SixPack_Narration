@@ -735,6 +735,9 @@ export default function App() {
   const [afDateTo, setAfDateTo] = useState(() => { const now = new Date(); const yyyy = now.getFullYear(); const mm = String(now.getMonth() + 1).padStart(2, "0"); const lastDay = new Date(yyyy, now.getMonth() + 1, 0).getDate(); return `${yyyy}-${mm}-${String(lastDay).padStart(2, "0")}`; });
   const [stPerson, setStPerson] = useState("");
   const [stSort, setStSort] = useState("count");
+  const [customCps, setCustomCps] = useState(() => { try { return JSON.parse(localStorage.getItem("sp_checkpoints") || "{}"); } catch { return {}; } });
+  const [editPack, setEditPack] = useState("lifecycle");
+  const [editPageIdx, setEditPageIdx] = useState(0);
   const [masterList, setMasterList] = useState([]); // 고객컨설팅마스터과정 교육생
   const [masterOnly, setMasterOnly] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
@@ -903,7 +906,7 @@ export default function App() {
       cpsToUse = PACK.checkpoints;
     } else {
       // 연습: 현재 페이지의 체크포인트만
-      const pageCps = PACK.pageCheckpoints?.[refPage];
+      const pageCps = getPageCps(selectedPack, refPage);
       cpsToUse = (pageCps && pageCps.length > 0) ? pageCps : PACK.checkpoints;
     }
     const refText = testMode ? PACK.reference : (PACK.pages[refPage] || PACK.reference);
@@ -920,6 +923,34 @@ export default function App() {
   const goBack = () => { const prev = pageHistoryRef.current.pop(); setPage(prev || "login"); };
   const goHome = () => { pageHistoryRef.current = []; setPage("login"); };
   const goTest = () => { navigate("test"); setTab("practice"); setResults(null); setTranscript(""); setManualText(""); setRecTime(0); setError(""); };
+
+  // ─── 커스텀 체크포인트 헬퍼 ───
+  const getPageCps = (packKey, pageIdx) => {
+    const custom = customCps?.[packKey]?.[pageIdx];
+    return (custom && custom.length > 0) ? custom : (PACKS[packKey]?.pageCheckpoints?.[pageIdx] || []);
+  };
+  const saveCustomCps = (updated) => { setCustomCps(updated); try { localStorage.setItem("sp_checkpoints", JSON.stringify(updated)); } catch {} };
+  const updateEditCp = (packKey, pageIdx, idx, field, value) => {
+    const current = getPageCps(packKey, pageIdx).map(cp => ({ label: cp.label, keys: [...cp.keys] }));
+    if (field === "label") current[idx].label = value;
+    else current[idx].keys = value.split(",").map(k => k.trim()).filter(k => k);
+    saveCustomCps({ ...customCps, [packKey]: { ...(customCps[packKey] || {}), [pageIdx]: current } });
+  };
+  const deleteEditCp = (packKey, pageIdx, idx) => {
+    const current = getPageCps(packKey, pageIdx).map(cp => ({ label: cp.label, keys: [...cp.keys] }));
+    current.splice(idx, 1);
+    saveCustomCps({ ...customCps, [packKey]: { ...(customCps[packKey] || {}), [pageIdx]: current } });
+  };
+  const addEditCp = (packKey, pageIdx) => {
+    const current = getPageCps(packKey, pageIdx).map(cp => ({ label: cp.label, keys: [...cp.keys] }));
+    current.push({ label: "새 체크포인트", keys: ["키워드"] });
+    saveCustomCps({ ...customCps, [packKey]: { ...(customCps[packKey] || {}), [pageIdx]: current } });
+  };
+  const resetEditCps = (packKey, pageIdx) => {
+    const updated = { ...customCps, [packKey]: { ...(customCps[packKey] || {}) } };
+    delete updated[packKey][pageIdx];
+    saveCustomCps(updated);
+  };
 
   const PACK_KEYS = Object.keys(PACKS);
   const currentPackIdx = PACK_KEYS.indexOf(selectedPack);
@@ -955,7 +986,7 @@ export default function App() {
       <>
       <div style={S.root}><div style={S.wrap}>
         <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.17</div>
+          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.18</div>
         </div>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 14, color: "#F97316", fontWeight: 700, marginBottom: 4 }}>현대해상</div>
@@ -1215,12 +1246,12 @@ export default function App() {
             <button onClick={() => { setAdminMode(false); goHome(); }} style={{ padding: "6px 12px", background: "#f5f5f5", border: "1px solid #ddd", borderRadius: 8, color: "#888", fontSize: 11, cursor: "pointer" }}>로그아웃</button>
           </div>
           <div style={{ display: "flex", gap: 4, marginBottom: 6, background: "#f5f5f5", borderRadius: 10, padding: 3 }}>
-            {[["records","📋 기록"],["stats","📊 통계"],["testResults","📝 테스트"]].map(([id,label]) => (
-              <button key={id} onClick={() => setAdminTab(id)} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: adminTab===id ? "#fff" : "transparent", color: adminTab===id ? "#222" : "#999", boxShadow: adminTab===id ? "0 1px 3px rgba(0,0,0,0.1)" : "none" }}>{label}</button>
+            {[["records","📋 기록"],["stats","📊 통계"],["testResults","📝 테스트"],["edit","✏️ 항목수정"]].map(([id,label]) => (
+              <button key={id} onClick={() => setAdminTab(id)} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600, background: adminTab===id ? "#fff" : "transparent", color: adminTab===id ? "#222" : "#999", boxShadow: adminTab===id ? "0 1px 3px rgba(0,0,0,0.1)" : "none" }}>{label}</button>
             ))}
           </div>
           {/* ───── 공통 필터 ───── */}
-          <div style={{ ...S.card, padding: "10px 12px", marginBottom: 6 }}>
+          {adminTab !== "edit" && <div style={{ ...S.card, padding: "10px 12px", marginBottom: 6 }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
               <select value={afRegion} onChange={e => { setAfRegion(e.target.value); setAfCenter(""); setAfBranch(""); setStPerson(""); }} style={{ padding: "6px 10px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }}>
                 <option value="">전체 지역단</option>{Object.keys(ORG).map(r => <option key={r} value={r}>{r}</option>)}
@@ -1252,7 +1283,7 @@ export default function App() {
               <input value={afTimeTo} onChange={e => setAfTimeTo(e.target.value.replace(/[^0-9:]/g,"").slice(0,5))} placeholder="23:59" maxLength={5} style={{ padding: "4px 8px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none", width: 50, textAlign: "center" }} />
               <button onClick={() => { const n = new Date(); const y = n.getFullYear(); const m = String(n.getMonth()+1).padStart(2,"0"); const ld = new Date(y, n.getMonth()+1, 0).getDate(); setAfTimeFrom(""); setAfTimeTo(""); setAfDateFrom(`${y}-${m}-01`); setAfDateTo(`${y}-${m}-${String(ld).padStart(2,"0")}`); }} style={{ padding: "4px 8px", background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 8, color: "#999", fontSize: 10, cursor: "pointer" }}>초기화</button>
             </div>
-          </div>
+          </div>}
         </div>
 
         {/* ───── 기록관리 탭 ───── */}
@@ -1590,6 +1621,74 @@ export default function App() {
               )}
             </div>
           </>);
+        })()}
+
+        {/* ───── 항목수정 탭 ───── */}
+        {adminTab === "edit" && (() => {
+          const EP = PACKS[editPack];
+          const pageCount = EP.pageCheckpoints.length;
+          const cpsForPage = getPageCps(editPack, editPageIdx);
+          const isCustomized = !!(customCps[editPack]?.[editPageIdx]);
+          return (
+            <>
+              {/* 화법 팩 선택 */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                {Object.entries(PACKS).map(([k, p]) => (
+                  <button key={k} onClick={() => { setEditPack(k); setEditPageIdx(0); }}
+                    style={{ padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600,
+                      background: editPack === k ? p.color : "#f5f5f5", color: editPack === k ? "#fff" : "#555" }}>
+                    {p.title}
+                  </button>
+                ))}
+              </div>
+
+              {/* 페이지 선택 */}
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 12 }}>
+                {Array.from({ length: pageCount }, (_, i) => (
+                  <button key={i} onClick={() => setEditPageIdx(i)}
+                    style={{ padding: "5px 12px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600,
+                      background: editPageIdx === i ? EP.color : "#f5f5f5", color: editPageIdx === i ? "#fff" : "#555" }}>
+                    {i + 1}페이지{customCps[editPack]?.[i] ? " ✎" : ""}
+                  </button>
+                ))}
+              </div>
+
+              {/* 체크포인트 목록 */}
+              {cpsForPage.map((cp, idx) => (
+                <div key={idx} style={{ ...S.card, marginBottom: 8, padding: "10px 12px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: EP.color, minWidth: 20 }}>#{idx + 1}</div>
+                    <input value={cp.label}
+                      onChange={e => updateEditCp(editPack, editPageIdx, idx, "label", e.target.value)}
+                      style={{ flex: 1, padding: "7px 10px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 13, fontWeight: 600, outline: "none" }} />
+                    <button onClick={() => deleteEditCp(editPack, editPageIdx, idx)}
+                      style={{ padding: "5px 10px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, color: "#EF4444", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>삭제</button>
+                  </div>
+                  <div>
+                    <input value={cp.keys.join(", ")}
+                      onChange={e => updateEditCp(editPack, editPageIdx, idx, "keys", e.target.value)}
+                      placeholder="키워드1, 키워드2, ..."
+                      style={{ width: "100%", padding: "7px 10px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 12, color: "#666", outline: "none", boxSizing: "border-box" }} />
+                    <div style={{ fontSize: 10, color: "#aaa", marginTop: 3 }}>키워드는 쉼표(,)로 구분 · 평가 시 각 키워드 포함 여부 체크</div>
+                  </div>
+                </div>
+              ))}
+
+              {/* 추가 버튼 */}
+              <button onClick={() => addEditCp(editPack, editPageIdx)}
+                style={{ width: "100%", padding: 13, background: "#f0fdf4", border: "1px dashed #86efac", borderRadius: 10, color: "#16a34a", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 8 }}>
+                + 체크포인트 추가
+              </button>
+
+              {/* 기본값 초기화 버튼 */}
+              {isCustomized && (
+                <button onClick={() => { if (window.confirm(`${editPageIdx+1}페이지 체크포인트를 기본값으로 초기화할까요?`)) resetEditCps(editPack, editPageIdx); }}
+                  style={{ width: "100%", padding: 10, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, color: "#92400e", fontSize: 12, cursor: "pointer" }}>
+                  🔄 이 페이지 기본값으로 초기화
+                </button>
+              )}
+            </>
+          );
         })()}
 
         <div style={{ marginTop: 16 }}><HomeBtn /></div>
