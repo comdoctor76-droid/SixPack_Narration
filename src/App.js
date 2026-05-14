@@ -545,13 +545,16 @@ function evaluate(text, cps, referenceText) {
     }
   }
 
-  // 키워드 포함 개수 × 키워드당 배점 → 체크포인트별 점수
+  // 키워드 포함 개수 비율로 배점 (관대한 곡선 적용)
+  // 1개라도 포함 시 기본 40% + 추가 포함분 비례, 전체 포함 시 만점
   return cps.map((cp, i) => {
     const keys = cpKeys[i];
     const total = keys.length;
     const matchCount = keys.filter(k => lc.includes(k)).length;
-    const maxScore = total * pointPerKey;       // 이 체크포인트의 만점 (키워드수에 비례)
-    const cpScore = matchCount * pointPerKey;   // 실제 점수
+    const maxScore = total * pointPerKey;
+    const ratio = total > 0 ? matchCount / total : 0;
+    const generousRatio = matchCount > 0 ? 0.4 + 0.6 * ratio : 0; // 1개 이상 포함 시 최소 40%
+    const cpScore = generousRatio * maxScore;
     const passed = matchCount > 0;
     const full = total > 0 && matchCount === total;
     const comment = full ? "✅ 완벽합니다!" : passed ? `📊 ${matchCount}/${total} 키워드 포함` : "📌 이 부분을 추가해보세요";
@@ -738,6 +741,8 @@ export default function App() {
   const [customCps, setCustomCps] = useState(() => { try { return JSON.parse(localStorage.getItem("sp_checkpoints") || "{}"); } catch { return {}; } });
   const [editPack, setEditPack] = useState("lifecycle");
   const [editPageIdx, setEditPageIdx] = useState(0);
+  const [editDraft, setEditDraft] = useState(null);
+  const [editSaved, setEditSaved] = useState(false);
   const [masterList, setMasterList] = useState([]); // 고객컨설팅마스터과정 교육생
   const [masterOnly, setMasterOnly] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
@@ -930,26 +935,19 @@ export default function App() {
     return (custom && custom.length > 0) ? custom : (PACKS[packKey]?.pageCheckpoints?.[pageIdx] || []);
   };
   const saveCustomCps = (updated) => { setCustomCps(updated); try { localStorage.setItem("sp_checkpoints", JSON.stringify(updated)); } catch {} };
-  const updateEditCp = (packKey, pageIdx, idx, field, value) => {
-    const current = getPageCps(packKey, pageIdx).map(cp => ({ label: cp.label, keys: [...cp.keys] }));
-    if (field === "label") current[idx].label = value;
-    else current[idx].keys = value.split(",").map(k => k.trim()).filter(k => k);
-    saveCustomCps({ ...customCps, [packKey]: { ...(customCps[packKey] || {}), [pageIdx]: current } });
-  };
-  const deleteEditCp = (packKey, pageIdx, idx) => {
-    const current = getPageCps(packKey, pageIdx).map(cp => ({ label: cp.label, keys: [...cp.keys] }));
-    current.splice(idx, 1);
-    saveCustomCps({ ...customCps, [packKey]: { ...(customCps[packKey] || {}), [pageIdx]: current } });
-  };
-  const addEditCp = (packKey, pageIdx) => {
-    const current = getPageCps(packKey, pageIdx).map(cp => ({ label: cp.label, keys: [...cp.keys] }));
-    current.push({ label: "새 체크포인트", keys: ["키워드"] });
-    saveCustomCps({ ...customCps, [packKey]: { ...(customCps[packKey] || {}), [pageIdx]: current } });
+  const loadDraft = (packKey, pageIdx) => setEditDraft(getPageCps(packKey, pageIdx).map(cp => ({ label: cp.label, keys: [...cp.keys] })));
+  const draftUpdateCp = (idx, field, value) => setEditDraft(prev => prev.map((cp, i) => i !== idx ? cp : field === "label" ? { ...cp, label: value } : { ...cp, keys: value.split(",").map(k => k.trim()).filter(k => k) }));
+  const draftDeleteCp = (idx) => setEditDraft(prev => prev.filter((_, i) => i !== idx));
+  const draftAddCp = () => setEditDraft(prev => [...prev, { label: "새 체크포인트", keys: ["키워드"] }]);
+  const commitDraft = (packKey, pageIdx) => {
+    saveCustomCps({ ...customCps, [packKey]: { ...(customCps[packKey] || {}), [pageIdx]: editDraft } });
+    setEditSaved(true); setTimeout(() => setEditSaved(false), 2000);
   };
   const resetEditCps = (packKey, pageIdx) => {
     const updated = { ...customCps, [packKey]: { ...(customCps[packKey] || {}) } };
     delete updated[packKey][pageIdx];
     saveCustomCps(updated);
+    loadDraft(packKey, pageIdx);
   };
 
   const PACK_KEYS = Object.keys(PACKS);
@@ -986,7 +984,7 @@ export default function App() {
       <>
       <div style={S.root}><div style={S.wrap}>
         <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.18</div>
+          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.19</div>
         </div>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 14, color: "#F97316", fontWeight: 700, marginBottom: 4 }}>현대해상</div>
@@ -1627,14 +1625,14 @@ export default function App() {
         {adminTab === "edit" && (() => {
           const EP = PACKS[editPack];
           const pageCount = EP.pageCheckpoints.length;
-          const cpsForPage = getPageCps(editPack, editPageIdx);
+          const draft = editDraft || getPageCps(editPack, editPageIdx).map(cp => ({ label: cp.label, keys: [...cp.keys] }));
           const isCustomized = !!(customCps[editPack]?.[editPageIdx]);
           return (
             <>
               {/* 화법 팩 선택 */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
                 {Object.entries(PACKS).map(([k, p]) => (
-                  <button key={k} onClick={() => { setEditPack(k); setEditPageIdx(0); }}
+                  <button key={k} onClick={() => { setEditPack(k); setEditPageIdx(0); setEditDraft(null); setEditSaved(false); }}
                     style={{ padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600,
                       background: editPack === k ? p.color : "#f5f5f5", color: editPack === k ? "#fff" : "#555" }}>
                     {p.title}
@@ -1645,7 +1643,7 @@ export default function App() {
               {/* 페이지 선택 */}
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 12 }}>
                 {Array.from({ length: pageCount }, (_, i) => (
-                  <button key={i} onClick={() => setEditPageIdx(i)}
+                  <button key={i} onClick={() => { setEditPageIdx(i); setEditDraft(null); setEditSaved(false); }}
                     style={{ padding: "5px 12px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600,
                       background: editPageIdx === i ? EP.color : "#f5f5f5", color: editPageIdx === i ? "#fff" : "#555" }}>
                     {i + 1}페이지{customCps[editPack]?.[i] ? " ✎" : ""}
@@ -1654,19 +1652,19 @@ export default function App() {
               </div>
 
               {/* 체크포인트 목록 */}
-              {cpsForPage.map((cp, idx) => (
+              {draft.map((cp, idx) => (
                 <div key={idx} style={{ ...S.card, marginBottom: 8, padding: "10px 12px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: EP.color, minWidth: 20 }}>#{idx + 1}</div>
                     <input value={cp.label}
-                      onChange={e => updateEditCp(editPack, editPageIdx, idx, "label", e.target.value)}
+                      onChange={e => { const d = draft.map((c,i) => i===idx ? {...c, label: e.target.value} : c); setEditDraft(d); setEditSaved(false); }}
                       style={{ flex: 1, padding: "7px 10px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 13, fontWeight: 600, outline: "none" }} />
-                    <button onClick={() => deleteEditCp(editPack, editPageIdx, idx)}
+                    <button onClick={() => { setEditDraft(draft.filter((_,i) => i!==idx)); setEditSaved(false); }}
                       style={{ padding: "5px 10px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, color: "#EF4444", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>삭제</button>
                   </div>
                   <div>
                     <input value={cp.keys.join(", ")}
-                      onChange={e => updateEditCp(editPack, editPageIdx, idx, "keys", e.target.value)}
+                      onChange={e => { const d = draft.map((c,i) => i===idx ? {...c, keys: e.target.value.split(",").map(k=>k.trim()).filter(k=>k)} : c); setEditDraft(d); setEditSaved(false); }}
                       placeholder="키워드1, 키워드2, ..."
                       style={{ width: "100%", padding: "7px 10px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 12, color: "#666", outline: "none", boxSizing: "border-box" }} />
                     <div style={{ fontSize: 10, color: "#aaa", marginTop: 3 }}>키워드는 쉼표(,)로 구분 · 평가 시 각 키워드 포함 여부 체크</div>
@@ -1675,9 +1673,15 @@ export default function App() {
               ))}
 
               {/* 추가 버튼 */}
-              <button onClick={() => addEditCp(editPack, editPageIdx)}
+              <button onClick={() => { setEditDraft([...draft, { label: "새 체크포인트", keys: ["키워드"] }]); setEditSaved(false); }}
                 style={{ width: "100%", padding: 13, background: "#f0fdf4", border: "1px dashed #86efac", borderRadius: 10, color: "#16a34a", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 8 }}>
                 + 체크포인트 추가
+              </button>
+
+              {/* 저장 버튼 */}
+              <button onClick={() => commitDraft(editPack, editPageIdx)}
+                style={{ width: "100%", padding: 14, background: editSaved ? "linear-gradient(135deg,#10B981,#059669)" : "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", marginBottom: 8 }}>
+                {editSaved ? "✅ 저장 완료!" : "💾 저장"}
               </button>
 
               {/* 기본값 초기화 버튼 */}
