@@ -532,7 +532,7 @@ function evaluate(text, cps, referenceText) {
   const lc = text.toLowerCase().replace(/[^가-힣a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
   const maxPerCp = 100 / cps.length;
 
-  // 기준 화법 70% 이상 정확도 → 99점
+  // 기준 화법 70% 이상 → 전체 만점
   if (referenceText) {
     const refWords = referenceText.replace(/[^가-힣a-z0-9\s]/g, "").replace(/\s+/g, " ").toLowerCase().split(" ").filter(w => w.length > 1);
     const matched = refWords.filter(w => lc.includes(w)).length;
@@ -541,12 +541,17 @@ function evaluate(text, cps, referenceText) {
     }
   }
 
-  // 단순 키워드 채점: 키워드 중 하나라도 포함되면 해당 체크포인트 만점
+  // 키워드 포함 개수 비율로 배점
   return cps.map(cp => {
-    const hit = cp.keys.some(k => lc.includes(k.toLowerCase().replace(/[^가-힣a-z0-9\s]/g, "")));
-    const cpScore = hit ? maxPerCp : 0;
-    return { label: cp.label, passed: hit, full: hit, score: cpScore, maxScore: maxPerCp, matched: hit ? 1 : 0, total: cp.keys.length,
-      comment: hit ? "✅ 포함되었습니다!" : "📌 이 부분을 추가해보세요" };
+    const cleanKeys = cp.keys.map(k => k.toLowerCase().replace(/[^가-힣a-z0-9\s]/g, "").trim()).filter(k => k.length > 0);
+    const total = cleanKeys.length;
+    const matchCount = cleanKeys.filter(k => lc.includes(k)).length;
+    const ratio = total > 0 ? matchCount / total : 0;
+    const cpScore = ratio * maxPerCp;
+    const passed = matchCount > 0;
+    const full = total > 0 && matchCount === total;
+    const comment = full ? "✅ 완벽합니다!" : passed ? `📊 ${matchCount}/${total} 키워드 포함` : "📌 이 부분을 추가해보세요";
+    return { label: cp.label, passed, full, score: cpScore, maxScore: maxPerCp, matched: matchCount, total, comment };
   });
 }
 
@@ -948,7 +953,7 @@ export default function App() {
       <>
       <div style={S.root}><div style={S.wrap}>
         <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.12</div>
+          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.13</div>
         </div>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 14, color: "#F97316", fontWeight: 700, marginBottom: 4 }}>현대해상</div>
@@ -1734,9 +1739,10 @@ export default function App() {
                   <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "#444" }}>{r.label}</div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: barC }}>{r.score.toFixed(1)}/{r.maxScore.toFixed(1)}</div>
                 </div>
-                <div style={{ marginLeft: 28, height: 4, background: "#f0f0f0", borderRadius: 2, overflow: "hidden" }}>
-                  <div style={{ width: `${r.total > 0 ? (r.matched/r.total)*100 : 0}%`, height: "100%", background: barC, borderRadius: 2 }} />
+                <div style={{ marginLeft: 28, height: 6, background: "#f0f0f0", borderRadius: 3, overflow: "hidden", marginBottom: 3 }}>
+                  <div style={{ width: `${r.total > 0 ? (r.matched/r.total)*100 : 0}%`, height: "100%", background: barC, borderRadius: 3 }} />
                 </div>
+                <div style={{ marginLeft: 28, fontSize: 11, color: barC, fontWeight: 500 }}>{r.comment}</div>
               </div>
             );
           })}
