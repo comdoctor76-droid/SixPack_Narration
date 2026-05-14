@@ -955,7 +955,7 @@ export default function App() {
       <>
       <div style={S.root}><div style={S.wrap}>
         <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.16</div>
+          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.17</div>
         </div>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 14, color: "#F97316", fontWeight: 700, marginBottom: 4 }}>현대해상</div>
@@ -1749,6 +1749,12 @@ export default function App() {
             );
           })}
         </div>
+        {transcript && (
+          <div style={{ ...S.card, marginBottom: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#555", marginBottom: 8 }}>🗣️ 녹음 내용</div>
+            <div style={{ fontSize: 13, color: "#555", lineHeight: 1.9, whiteSpace: "pre-wrap" }}>{transcript}</div>
+          </div>
+        )}
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => { if (results.isTest) { goTest(); } else { setShowContinueModal(true); } }} style={{ flex: 1, padding: 14, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>{results.isTest ? "📝 계속 테스트" : "🔄 계속 연습"}</button>
           <button onClick={() => { loadHistory(); navigate("history"); }} style={{ flex: 1, padding: 14, background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, color: "#666", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>{results.isTest ? "📝 테스트 기록" : "📝 기록"}</button>
