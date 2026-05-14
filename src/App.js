@@ -935,10 +935,7 @@ export default function App() {
     return (custom && custom.length > 0) ? custom : (PACKS[packKey]?.pageCheckpoints?.[pageIdx] || []);
   };
   const saveCustomCps = (updated) => { setCustomCps(updated); try { localStorage.setItem("sp_checkpoints", JSON.stringify(updated)); } catch {} };
-  // 드래프트: keysStr(편집용 문자열)로 관리, 저장 시에만 keys 배열로 파싱
   const loadDraft = (packKey, pageIdx) => setEditDraft(getPageCps(packKey, pageIdx).map(cp => ({ label: cp.label, keysStr: cp.keys.join(", ") })));
-  const draftDeleteCp = (idx) => setEditDraft(prev => prev.filter((_, i) => i !== idx));
-  const draftAddCp = () => setEditDraft(prev => [...prev, { label: "새 체크포인트", keysStr: "키워드" }]);
   const commitDraft = (packKey, pageIdx) => {
     const parsed = editDraft.map(cp => ({ label: cp.label, keys: (cp.keysStr||"").split(",").map(k => k.trim()).filter(k => k) }));
     saveCustomCps({ ...customCps, [packKey]: { ...(customCps[packKey] || {}), [pageIdx]: parsed } });
@@ -985,7 +982,7 @@ export default function App() {
       <>
       <div style={S.root}><div style={S.wrap}>
         <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.20</div>
+          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.21</div>
         </div>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 14, color: "#F97316", fontWeight: 700, marginBottom: 4 }}>현대해상</div>
