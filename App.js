@@ -530,28 +530,32 @@ Object.values(PACKS).forEach(p => {
 // ─── 평가 함수 ───
 function evaluate(text, cps, referenceText) {
   const lc = text.toLowerCase().replace(/[^가-힣a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
-  const maxPerCp = 100 / cps.length;
+
+  // 전체 키워드 수 집계 → 키워드 1개당 배점 = 100 / 전체키워드수 → 만점 합계 = 100
+  const cpKeys = cps.map(cp => cp.keys.map(k => k.toLowerCase().replace(/[^가-힣a-z0-9\s]/g, "").trim()).filter(k => k.length > 0));
+  const totalKeyCount = cpKeys.reduce((s, keys) => s + keys.length, 0);
+  const pointPerKey = totalKeyCount > 0 ? 100 / totalKeyCount : 0;
 
   // 기준 화법 70% 이상 → 전체 만점
   if (referenceText) {
     const refWords = referenceText.replace(/[^가-힣a-z0-9\s]/g, "").replace(/\s+/g, " ").toLowerCase().split(" ").filter(w => w.length > 1);
     const matched = refWords.filter(w => lc.includes(w)).length;
     if (refWords.length > 0 && matched / refWords.length >= 0.7) {
-      return cps.map(cp => ({ label: cp.label, passed: true, full: true, score: maxPerCp, maxScore: maxPerCp, matched: cp.keys.length, total: cp.keys.length, comment: "✅ 훌륭해요!" }));
+      return cps.map((cp, i) => { const total = cpKeys[i].length; const maxScore = total * pointPerKey; return { label: cp.label, passed: true, full: true, score: maxScore, maxScore, matched: total, total, comment: "✅ 훌륭해요!" }; });
     }
   }
 
-  // 키워드 포함 개수 비율로 배점
-  return cps.map(cp => {
-    const cleanKeys = cp.keys.map(k => k.toLowerCase().replace(/[^가-힣a-z0-9\s]/g, "").trim()).filter(k => k.length > 0);
-    const total = cleanKeys.length;
-    const matchCount = cleanKeys.filter(k => lc.includes(k)).length;
-    const ratio = total > 0 ? matchCount / total : 0;
-    const cpScore = ratio * maxPerCp;
+  // 키워드 포함 개수 × 키워드당 배점 → 체크포인트별 점수
+  return cps.map((cp, i) => {
+    const keys = cpKeys[i];
+    const total = keys.length;
+    const matchCount = keys.filter(k => lc.includes(k)).length;
+    const maxScore = total * pointPerKey;       // 이 체크포인트의 만점 (키워드수에 비례)
+    const cpScore = matchCount * pointPerKey;   // 실제 점수
     const passed = matchCount > 0;
     const full = total > 0 && matchCount === total;
     const comment = full ? "✅ 완벽합니다!" : passed ? `📊 ${matchCount}/${total} 키워드 포함` : "📌 이 부분을 추가해보세요";
-    return { label: cp.label, passed, full, score: cpScore, maxScore: maxPerCp, matched: matchCount, total, comment };
+    return { label: cp.label, passed, full, score: cpScore, maxScore, matched: matchCount, total, comment };
   });
 }
 
@@ -906,7 +910,7 @@ export default function App() {
     }
     const refText = testMode ? PACK.reference : (PACK.pages[refPage] || PACK.reference);
     const cr = evaluate(text, cpsToUse, refText);
-    const score = Math.round(cr.reduce((s, r) => s + r.score, 0));
+    const score = Math.min(100, Math.round(cr.reduce((s, r) => s + r.score, 0)));
     const p = cr.filter(r => r.full).length;
     if (!afterSave) setResults({ score, checkResults: cr, pageIdx: testMode ? -1 : refPage, isTest: testMode });
     await saveScore(score, p, cr.length, cr.map(c => ({ l: c.label, p: c.passed, f: c.full, s: c.score, m: c.matched, t: c.total })), text, PACK.title, testMode ? -1 : refPage);
@@ -953,7 +957,7 @@ export default function App() {
       <>
       <div style={S.root}><div style={S.wrap}>
         <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.13</div>
+          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.14</div>
         </div>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 14, color: "#F97316", fontWeight: 700, marginBottom: 4 }}>현대해상</div>
