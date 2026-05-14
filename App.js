@@ -982,7 +982,7 @@ export default function App() {
       <>
       <div style={S.root}><div style={S.wrap}>
         <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.21</div>
+          <div style={{ position: "absolute", top: 0, right: 0, fontSize: 10, color: "#bbb", fontWeight: 500, letterSpacing: 0.3 }}>v1.22</div>
         </div>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 14, color: "#F97316", fontWeight: 700, marginBottom: 4 }}>현대해상</div>
@@ -1936,13 +1936,18 @@ export default function App() {
             <button onClick={() => setRefPage(Math.min(PACK.pages.length-1,refPage+1))} disabled={refPage>=PACK.pages.length-1} style={{ padding: "5px 12px", background: refPage < PACK.pages.length-1 ? "#f5f5f5" : "#fafafa", border: "1px solid #e5e5e5", borderRadius: 8, color: refPage < PACK.pages.length-1 ? "#333" : "#ccc", fontSize: 13, cursor: refPage < PACK.pages.length-1 ? "pointer" : "default" }}>→</button>
           </div>
           {/* 현재 페이지 체크포인트 */}
-          <div style={{ fontSize: 12, fontWeight: 700, color: C, marginBottom: 6 }}>✅ {refPage+1}페이지 체크포인트 ({(PACK.pageCheckpoints?.[refPage]||[]).length}개)</div>
-          {(PACK.pageCheckpoints?.[refPage]||[]).map((c, i) => (
-            <div key={i} style={{ display: "flex", gap: 8, padding: "5px 0", borderBottom: i < (PACK.pageCheckpoints?.[refPage]||[]).length - 1 ? "1px solid #f5f5f5" : "none" }}>
-              <span style={{ color: C, fontWeight: 700, minWidth: 20, fontSize: 12 }}>{i+1}.</span>
-              <span style={{ fontSize: 13, color: "#555" }}>{c.label}</span>
-            </div>
-          ))}
+          {(() => { const pageCps = getPageCps(selectedPack, refPage); return (<>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C, marginBottom: 6 }}>✅ {refPage+1}페이지 체크포인트 ({pageCps.length}개)</div>
+            {pageCps.map((c, i) => (
+              <div key={i} style={{ display: "flex", gap: 8, padding: "5px 0", borderBottom: i < pageCps.length - 1 ? "1px solid #f5f5f5" : "none" }}>
+                <span style={{ color: C, fontWeight: 700, minWidth: 20, fontSize: 12 }}>{i+1}.</span>
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontSize: 13, color: "#555" }}>{c.label}</span>
+                  <div style={{ fontSize: 10, color: "#bbb", marginTop: 2 }}>{c.keys.join(" · ")}</div>
+                </div>
+              </div>
+            ))}
+          </>); })()}
           <div style={{ marginTop: 14, fontSize: 12, fontWeight: 700, color: C, marginBottom: 6 }}>💬 기준 화법</div>
           <p style={{ fontSize: 13, color: "#666", lineHeight: 2, margin: 0, whiteSpace: "pre-wrap" }}>{PACK.pages[refPage]}</p>
         </div>
