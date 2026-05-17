@@ -324,20 +324,20 @@ const CONSULT_ITEMS = {
       { cat: "입원", items: [
         { id:"ca01", label:"암입원일당(실손/본인부담금포함)", freq:"급여연간21일한", freqType:"daily" },
         { id:"ca02", label:"특정(소화기/소아)암입원일당", freq:"급여연간21일한", freqType:"daily" },
-        { id:"ca03", label:"위암/전립선/유방암(표준형)입원일당", freq:"연간21일한", freqType:"daily" },
+        { id:"ca03", label:"위암/전립선/유방암(표준형)입원일당", freq:"연간21일한", freqType:"daily", date:"2022.08" },
         { id:"ca04", label:"소아청소년암입원일당", freq:"연간21일한", freqType:"daily" },
         { id:"ca05", label:"희귀난치성질환입원일당", freq:"최초1회한", freqType:"once" },
         { id:"ca06", label:"고액치료비암(혈액암)입원일당", freq:"최초1회한", freqType:"once" },
         { id:"ca07", label:"암입원급여금", freq:"180일/30일/10일", freqType:"daily" },
-        { id:"ca08", label:"특정암입원급여금", freq:"연간21일한", freqType:"daily" },
-        { id:"ca09", label:"소아암입원급여금", freq:"연간21일한", freqType:"daily" },
+        { id:"ca08", label:"특정암입원급여금", freq:"연간21일한", freqType:"daily", date:"2024.02" },
+        { id:"ca09", label:"소아암입원급여금", freq:"연간21일한", freqType:"daily", date:"2024.07" },
         { id:"ca10", label:"암입원통원비", freq:"120일/10일당", freqType:"daily" },
         { id:"ca11", label:"특정암입원통원비", freq:"120일한", freqType:"daily" },
         { id:"ca12", label:"소아암입원통원비", freq:"120일한", freqType:"daily" },
       ]},
       { cat: "진단", items: [
-        { id:"cd01", label:"암(일반암)진단비", freq:"최초1회한", freqType:"once" },
-        { id:"cd02", label:"특정(소화기/소아)암진단비", freq:"최초1회한", freqType:"once" },
+        { id:"cd01", label:"암(일반암)진단비", freq:"최초1회한", freqType:"once", date:"2024.02" },
+        { id:"cd02", label:"특정(소화기/소아)암진단비", freq:"최초1회한", freqType:"once", date:"2024.07" },
         { id:"cd03", label:"소아청소년암진단비", freq:"최초1회한", freqType:"once" },
         { id:"cd04", label:"위암/전립선/유방암등 진단비", freq:"최초1회한", freqType:"once" },
         { id:"cd05", label:"고액암(혈액암)진단비", freq:"최초1회한", freqType:"once" },
@@ -348,23 +348,23 @@ const CONSULT_ITEMS = {
         { id:"cs01", label:"암수술비(7~5종)", freq:"수술당지급", freqType:"per_treatment" },
         { id:"cs02", label:"항암수술비", freq:"수술당지급", freqType:"per_treatment" },
         { id:"cs03", label:"방사선수술비", freq:"수술당지급", freqType:"per_treatment" },
-        { id:"cs04", label:"암수술비(특정)", freq:"수술당지급", freqType:"per_treatment" },
-        { id:"cs05", label:"암(입원중)수술비", freq:"수술당지급", freqType:"per_treatment" },
-        { id:"cs06", label:"암수술(2/3/4/5종)", freq:"수술당지급", freqType:"per_treatment" },
+        { id:"cs04", label:"암수술비(특정)", freq:"수술당지급", freqType:"per_treatment", date:"2023.10" },
+        { id:"cs05", label:"암(입원중)수술비", freq:"수술당지급", freqType:"per_treatment", date:"2024.01" },
+        { id:"cs06", label:"암수술(2/3/4/5종)", freq:"수술당지급", freqType:"per_treatment", date:"2019.07" },
       ]},
       { cat: "치료", items: [
         { id:"ct01", label:"항암제치료비", freq:"치료당", freqType:"per_treatment" },
         { id:"ct02", label:"암방사선/항암화학약물치료", freq:"치료당", freqType:"per_treatment" },
         { id:"ct03", label:"항암방사선치료", freq:"치료당", freqType:"per_treatment" },
         { id:"ct04", label:"HIFU(하이푸)치료비", freq:"치료당", freqType:"per_treatment" },
-        { id:"ct05", label:"500만원이상암치료비", freq:"치료당", freqType:"per_treatment" },
-        { id:"ct06", label:"표적항암약물치료", freq:"최초1회한", freqType:"once" },
-        { id:"ct07", label:"특정약물치료", freq:"최초1회한", freqType:"once" },
-        { id:"ct08", label:"항암면역치료", freq:"최초1회한", freqType:"once" },
-        { id:"ct09", label:"특정(면역/증식)항암치료", freq:"최초1회한", freqType:"once" },
+        { id:"ct05", label:"500만원이상암치료비", freq:"치료당", freqType:"per_treatment", date:"2019.07" },
+        { id:"ct06", label:"표적항암약물치료", freq:"최초1회한", freqType:"once", date:"2024.04" },
+        { id:"ct07", label:"특정약물치료", freq:"최초1회한", freqType:"once", date:"2024.04" },
+        { id:"ct08", label:"항암면역치료", freq:"최초1회한", freqType:"once", date:"2022.07" },
+        { id:"ct09", label:"특정(면역/증식)항암치료", freq:"최초1회한", freqType:"once", date:"2024.04" },
         { id:"ct10", label:"항암방사선치료후3년지급", freq:"최초1회한", freqType:"once" },
-        { id:"ct11", label:"항암약물치료(특정)", freq:"최초1회한", freqType:"once" },
-        { id:"ct12", label:"다제내성암(특정)약물치료", freq:"최초1회한", freqType:"once" },
+        { id:"ct11", label:"항암약물치료(특정)", freq:"최초1회한", freqType:"once", date:"2024.10" },
+        { id:"ct12", label:"다제내성암(특정)약물치료", freq:"최초1회한", freqType:"once", date:"2025.04" },
       ]},
       { cat: "기타", items: [
         { id:"ce01", label:"암검진비용", freq:"연간1회한", freqType:"annual" },
@@ -425,15 +425,15 @@ const CONSULT_ITEMS = {
         { id:"fa02", label:"질병수술입원일당", freq:"120일/10일", freqType:"daily" },
         { id:"fa03", label:"질병수술입원일당(종합병원)", freq:"120일", freqType:"daily" },
         { id:"fa04", label:"질병수술입원일당(상급종합병원)", freq:"120일", freqType:"daily" },
-        { id:"fa05", label:"질병입원일당(1인실)(종합병원)", freq:"30일", freqType:"daily" },
-        { id:"fa06", label:"질병입원일당(1인실)(상급종합병원)", freq:"30일", freqType:"daily" },
-        { id:"fa07", label:"질병입원일당(2~3인실)(종합병원)", freq:"30일", freqType:"daily" },
-        { id:"fa08", label:"질병입원일당(2~3인실)(상급종합병원)", freq:"30일", freqType:"daily" },
+        { id:"fa05", label:"질병입원일당(1인실)(종합병원)", freq:"30일", freqType:"daily", date:"2024.02" },
+        { id:"fa06", label:"질병입원일당(1인실)(상급종합병원)", freq:"30일", freqType:"daily", date:"2024.02" },
+        { id:"fa07", label:"질병입원일당(2~3인실)(종합병원)", freq:"30일", freqType:"daily", date:"2024.07" },
+        { id:"fa08", label:"질병입원일당(2~3인실)(상급종합병원)", freq:"30일", freqType:"daily", date:"2024.07" },
         { id:"fa09", label:"간호·간병통합서비스(일반/재활병동)", freq:"30일/60일", freqType:"daily" },
       ]},
       { cat: "검사", items: [
-        { id:"fb01", label:"질병CT검사지원비", freq:"급여,연간1회한", freqType:"annual" },
-        { id:"fb02", label:"질병MRI검사지원비", freq:"급여,연간1회한", freqType:"annual" },
+        { id:"fb01", label:"질병CT검사지원비", freq:"급여,연간1회한", freqType:"annual", date:"2023.01" },
+        { id:"fb02", label:"질병MRI검사지원비", freq:"급여,연간1회한", freqType:"annual", date:"2023.01" },
       ]},
       { cat: "진단", items: [
         { id:"fc01", label:"당뇨병진단(당화혈색소6.5%이상)", freq:"최초1회한", freqType:"once" },
@@ -448,21 +448,21 @@ const CONSULT_ITEMS = {
         { id:"fc10", label:"만성당뇨합병증진단", freq:"최초1회한", freqType:"once" },
       ]},
       { cat: "치료", items: [
-        { id:"fd01", label:"질병수술(1-5종)", freq:"수술회당지급", freqType:"per_treatment" },
-        { id:"fd02", label:"120대질병수술", freq:"수술회당지급", freqType:"per_treatment" },
-        { id:"fd03", label:"5대기관질병수술(관혈/비관혈)", freq:"각각 연간1회한", freqType:"annual" },
+        { id:"fd01", label:"질병수술(1-5종)", freq:"수술회당지급", freqType:"per_treatment", date:"2024.04" },
+        { id:"fd02", label:"120대질병수술", freq:"수술회당지급", freqType:"per_treatment", date:"2021.01" },
+        { id:"fd03", label:"5대기관질병수술(관혈/비관혈)", freq:"각각 연간1회한", freqType:"annual", date:"2019.07" },
         { id:"fd04", label:"질병수술", freq:"365일내1회", freqType:"annual" },
         { id:"fd05", label:"질병수술(백내장및대장용종제외)", freq:"365일내1회", freqType:"annual" },
-        { id:"fd06", label:"질병수술(종합병원)", freq:"365일내1회", freqType:"annual" },
+        { id:"fd06", label:"질병수술(종합병원)", freq:"365일내1회", freqType:"annual", date:"2024.04" },
         { id:"fd07", label:"질병수술(상급종합병원)", freq:"365일내1회", freqType:"annual" },
         { id:"fd08", label:"남성특정비뇨기계질환수술", freq:"최초1회한", freqType:"once" },
         { id:"fd09", label:"여성특정생식기질환수술", freq:"수술회당지급", freqType:"per_treatment" },
-        { id:"fd10", label:"특정질환로봇수술", freq:"연간1회한", freqType:"annual" },
+        { id:"fd10", label:"특정질환로봇수술", freq:"연간1회한", freqType:"annual", date:"2024.04" },
         { id:"fd11", label:"당뇨고혈압질환수술", freq:"수술1회당", freqType:"per_treatment" },
         { id:"fd12", label:"추간판장애수술", freq:"수술1회당", freqType:"per_treatment" },
         { id:"fd13", label:"충수염수술", freq:"최초1회한", freqType:"once" },
         { id:"fd14", label:"탈장수술", freq:"수술1회당", freqType:"per_treatment" },
-        { id:"fd15", label:"질병특정급여시술치료", freq:"연간1회한", freqType:"annual" },
+        { id:"fd15", label:"질병특정급여시술치료", freq:"연간1회한", freqType:"annual", date:"2024.04" },
         { id:"fd16", label:"갑상선항진증치료", freq:"최초1회한", freqType:"once" },
       ]},
     ]
@@ -1299,10 +1299,11 @@ export default function App() {
         const t = calcTotal(item);
         const days = getAmt(item.id,"days");
         const freqLabel = item.freqType === "daily" && days ? `${item.freq||""} / ${days}일` : (item.freq||"");
+        const dateLabel = item.date ? `<div style="font-size:9px;color:#F97316;margin-top:1px">${item.date}</div>` : "";
         const bv = getAmt(item.id,"before"); const av = getAmt(item.id,"after");
         return `<tr>
           <td style="padding:3px 6px 3px 14px;font-size:11px;border-bottom:1px solid #f0f0f0">${item.label||""}</td>
-          <td style="padding:3px 5px;font-size:10px;border-bottom:1px solid #f0f0f0;text-align:center;color:#777">${freqLabel}</td>
+          <td style="padding:3px 5px;font-size:10px;border-bottom:1px solid #f0f0f0;text-align:center;color:#777">${freqLabel}${dateLabel}</td>
           <td style="padding:3px 5px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right">${bv ? Number(bv).toLocaleString()+"만" : ""}</td>
           <td style="padding:3px 5px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right">${av ? Number(av).toLocaleString()+"만" : ""}</td>
           <td style="padding:3px 5px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right;color:#c00">${t.before > 0 ? t.before.toLocaleString()+"만" : ""}</td>
@@ -1339,7 +1340,7 @@ export default function App() {
         <button onclick="window.print()" style="margin-bottom:8px;padding:6px 18px;background:#F97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">🖨 인쇄</button>
         <table><thead><tr style="background:#F97316;color:#fff">
           <th style="padding:4px 6px;font-size:10px;text-align:left">보장내역</th>
-          <th style="padding:4px 5px;font-size:10px;text-align:center">보장횟수</th>
+          <th style="padding:4px 5px;font-size:10px;text-align:center">보장횟수 / 출시일</th>
           <th style="padding:4px 5px;font-size:10px;text-align:right">전(만원)</th>
           <th style="padding:4px 5px;font-size:10px;text-align:right">후(만원)</th>
           <th style="padding:4px 5px;font-size:10px;text-align:right">${years}년합계(전)</th>
