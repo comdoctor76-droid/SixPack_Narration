@@ -315,6 +315,114 @@ ORG_RAW.trim().split("\n").forEach(line => {
   ALL_BRANCHES.push(c);
 });
 
+// ─── 영수증 컨설팅 데이터 ───
+// freqType: "once"=최초1회한, "annual"=연간1회한/365일내1회한, "per_treatment"=치료당/수술당, "daily"=일당(한도일수)
+const CONSULT_ITEMS = {
+  cancer: {
+    label: "암 보장 컨설팅",
+    categories: [
+      { cat: "입원", items: [
+        { id:"ca01", label:"암입원일당(실손/본인부담금포함)", freq:"급여연간21일한", freqType:"daily" },
+        { id:"ca02", label:"특정(소화기/소아)암입원일당", freq:"급여연간21일한", freqType:"daily" },
+        { id:"ca03", label:"위암/전립선/유방암(표준형)입원일당", freq:"연간21일한", freqType:"daily" },
+        { id:"ca04", label:"소아청소년암입원일당", freq:"연간21일한", freqType:"daily" },
+        { id:"ca05", label:"희귀난치성질환입원일당", freq:"최초1회한", freqType:"once" },
+        { id:"ca06", label:"고액치료비암(혈액암)입원일당", freq:"최초1회한", freqType:"once" },
+        { id:"ca07", label:"암입원급여금", freq:"180일/30일/10일", freqType:"daily" },
+        { id:"ca08", label:"특정암입원급여금", freq:"연간21일한", freqType:"daily" },
+        { id:"ca09", label:"소아암입원급여금", freq:"연간21일한", freqType:"daily" },
+        { id:"ca10", label:"암입원통원비", freq:"120일/10일당", freqType:"daily" },
+        { id:"ca11", label:"특정암입원통원비", freq:"120일한", freqType:"daily" },
+        { id:"ca12", label:"소아암입원통원비", freq:"120일한", freqType:"daily" },
+      ]},
+      { cat: "진단", items: [
+        { id:"cd01", label:"암(일반암)진단비", freq:"최초1회한", freqType:"once" },
+        { id:"cd02", label:"특정(소화기/소아)암진단비", freq:"최초1회한", freqType:"once" },
+        { id:"cd03", label:"소아청소년암진단비", freq:"최초1회한", freqType:"once" },
+        { id:"cd04", label:"위암/전립선/유방암등 진단비", freq:"최초1회한", freqType:"once" },
+        { id:"cd05", label:"고액암(혈액암)진단비", freq:"최초1회한", freqType:"once" },
+        { id:"cd06", label:"뇌암/골수암 진단비", freq:"최초1회한", freqType:"once" },
+        { id:"cd07", label:"특정암(입원적격)실손의료비", freq:"연간한도", freqType:"annual" },
+      ]},
+      { cat: "수술", items: [
+        { id:"cs01", label:"암수술비(7~5종)", freq:"수술당지급", freqType:"per_treatment" },
+        { id:"cs02", label:"항암수술비", freq:"수술당지급", freqType:"per_treatment" },
+        { id:"cs03", label:"방사선수술비", freq:"수술당지급", freqType:"per_treatment" },
+        { id:"cs04", label:"암수술비(특정)", freq:"수술당지급", freqType:"per_treatment" },
+        { id:"cs05", label:"암(입원중)수술비", freq:"수술당지급", freqType:"per_treatment" },
+        { id:"cs06", label:"암수술(2/3/4/5종)", freq:"수술당지급", freqType:"per_treatment" },
+      ]},
+      { cat: "치료", items: [
+        { id:"ct01", label:"항암제치료비", freq:"치료당", freqType:"per_treatment" },
+        { id:"ct02", label:"암방사선/항암화학약물치료", freq:"치료당", freqType:"per_treatment" },
+        { id:"ct03", label:"항암방사선치료", freq:"치료당", freqType:"per_treatment" },
+        { id:"ct04", label:"HIFU(하이푸)치료비", freq:"치료당", freqType:"per_treatment" },
+        { id:"ct05", label:"500만원이상암치료비", freq:"치료당", freqType:"per_treatment" },
+        { id:"ct06", label:"표적항암약물치료", freq:"최초1회한", freqType:"once" },
+        { id:"ct07", label:"특정약물치료", freq:"최초1회한", freqType:"once" },
+        { id:"ct08", label:"항암면역치료", freq:"최초1회한", freqType:"once" },
+        { id:"ct09", label:"특정(면역/증식)항암치료", freq:"최초1회한", freqType:"once" },
+        { id:"ct10", label:"항암방사선치료후3년지급", freq:"최초1회한", freqType:"once" },
+        { id:"ct11", label:"항암약물치료(특정)", freq:"최초1회한", freqType:"once" },
+        { id:"ct12", label:"다제내성암(특정)약물치료", freq:"최초1회한", freqType:"once" },
+      ]},
+      { cat: "기타", items: [
+        { id:"ce01", label:"암검진비용", freq:"연간1회한", freqType:"annual" },
+        { id:"ce02", label:"암수술후요양비", freq:"최초1회한", freqType:"once" },
+        { id:"ce03", label:"암보험료납입면제", freq:"최초1회한", freqType:"once" },
+      ]},
+    ]
+  },
+  cerebrovascular: {
+    label: "심뇌혈관질환 보장 컨설팅",
+    categories: [
+      { cat: "입원", items: [
+        { id:"sa01", label:"뇌혈관질환입원일당", freq:"연간21일한", freqType:"daily" },
+        { id:"sa02", label:"심장질환입원일당", freq:"연간21일한", freqType:"daily" },
+        { id:"sa03", label:"뇌졸중(중풍)입원일당", freq:"연간21일한", freqType:"daily" },
+        { id:"sa04", label:"급성심근경색입원일당", freq:"연간21일한", freqType:"daily" },
+        { id:"sa05", label:"뇌경색입원일당", freq:"연간21일한", freqType:"daily" },
+      ]},
+      { cat: "진단", items: [
+        { id:"sd01", label:"뇌출혈진단비", freq:"최초1회한", freqType:"once" },
+        { id:"sd02", label:"뇌경색진단비", freq:"최초1회한", freqType:"once" },
+        { id:"sd03", label:"뇌졸중진단비", freq:"최초1회한", freqType:"once" },
+        { id:"sd04", label:"뇌혈관질환진단비", freq:"최초1회한", freqType:"once" },
+        { id:"sd05", label:"급성심근경색진단비", freq:"최초1회한", freqType:"once" },
+        { id:"sd06", label:"심근경색진단비", freq:"최초1회한", freqType:"once" },
+        { id:"sd07", label:"허혈성심장질환진단비", freq:"최초1회한", freqType:"once" },
+        { id:"sd08", label:"심장질환진단비", freq:"최초1회한", freqType:"once" },
+        { id:"sd09", label:"CT/MRI비용(뇌혈관)", freq:"연간1회한", freqType:"annual" },
+        { id:"sd10", label:"CT/MRI비용(심장)", freq:"연간1회한", freqType:"annual" },
+      ]},
+      { cat: "수술", items: [
+        { id:"ss01", label:"뇌혈관수술비", freq:"수술당지급", freqType:"per_treatment" },
+        { id:"ss02", label:"심장수술비", freq:"수술당지급", freqType:"per_treatment" },
+        { id:"ss03", label:"뇌졸중수술비", freq:"수술당지급", freqType:"per_treatment" },
+        { id:"ss04", label:"심혈관수술비(스텐트/풍선)", freq:"수술당지급", freqType:"per_treatment" },
+        { id:"ss05", label:"120만원이상심장수술비", freq:"수술당지급", freqType:"per_treatment" },
+        { id:"ss06", label:"500만원이상심장수술비", freq:"수술당지급", freqType:"per_treatment" },
+        { id:"ss07", label:"심뇌혈관수술(2/3/4종)", freq:"수술당지급", freqType:"per_treatment" },
+      ]},
+      { cat: "치료", items: [
+        { id:"st01", label:"뇌혈관질환약물치료비", freq:"치료당", freqType:"per_treatment" },
+        { id:"st02", label:"심장질환약물치료비", freq:"치료당", freqType:"per_treatment" },
+        { id:"st03", label:"특정뇌혈관시술비", freq:"최초1회한", freqType:"once" },
+        { id:"st04", label:"뇌졸중후유장해보험금", freq:"최초1회한", freqType:"once" },
+      ]},
+      { cat: "기타", items: [
+        { id:"se01", label:"뇌혈관질환요양비", freq:"최초1회한", freqType:"once" },
+        { id:"se02", label:"심혈관질환요양비", freq:"최초1회한", freqType:"once" },
+        { id:"se03", label:"심뇌혈관보험료납입면제", freq:"최초1회한", freqType:"once" },
+      ]},
+    ]
+  },
+  frequent: {
+    label: "다빈도 보장 컨설팅",
+    categories: []
+  },
+};
+
 // ─── 6개 화법 데이터 ───
 const PACKS = {
   lifecycle: {
@@ -749,6 +857,10 @@ export default function App() {
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showContinueModal, setShowContinueModal] = useState(false);
   const [showNoRecords, setShowNoRecords] = useState(false);
+  const [consultGroup, setConsultGroup] = useState("cancer");
+  const [consultAmounts, setConsultAmounts] = useState({});
+  const [consultYears, setConsultYears] = useState(1);
+  const [consultClientName, setConsultClientName] = useState("");
   const pageHistoryRef = useRef([]);
   const wakeLockRef = useRef(null);
   const [pendingEvalText, setPendingEvalText] = useState("");
@@ -1012,7 +1124,16 @@ export default function App() {
               style={{ width: "100%", padding: "12px 14px", background: "#fff", border: "1px solid #ddd", borderRadius: 10, fontSize: 14, color: "#222", outline: "none", boxSizing: "border-box", marginBottom: 12 }} />
           )}
           {error && <div style={S.errorBox}>{error}</div>}
-          <button onClick={handleLogin} style={{ width: "100%", padding: 15, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 12, color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", marginTop: 4 }}>시작하기 →</button>
+          <button onClick={() => {
+            const finalName = nameInput === "__MANUAL__" ? manualNameInput.trim() : nameInput;
+            if (!selRegion || !selCenter || !selBranch || !finalName) { setError("소속과 이름을 먼저 선택해주세요."); return; }
+            setError("");
+            setConsultClientName(finalName);
+            setConsultAmounts({});
+            setConsultYears(1);
+            navigate("receiptConsult");
+          }} style={{ width: "100%", padding: 13, background: "#fff", border: "2px solid #F97316", borderRadius: 12, color: "#F97316", fontSize: 15, fontWeight: 700, cursor: "pointer", marginTop: 4, marginBottom: 6 }}>영수증컨설팅 실습하기</button>
+          <button onClick={handleLogin} style={{ width: "100%", padding: 15, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 12, color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer" }}>시작하기 →</button>
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
           <button onClick={async () => {
@@ -1078,6 +1199,273 @@ export default function App() {
       </div></div>
       <DraggableRefreshBtn />
       </>
+    );
+  }
+
+  // ═══════════ RECEIPT CONSULT ═══════════
+  if (page === "receiptConsult") {
+    const groupData = CONSULT_ITEMS[consultGroup];
+    const allItems = groupData ? groupData.categories.flatMap(c => c.items) : [];
+    const years = Math.max(1, Number(consultYears) || 1);
+
+    const getAmt = (id, field) => consultAmounts[id]?.[field] || "";
+    const setAmt = (id, field, val) => setConsultAmounts(prev => ({ ...prev, [id]: { ...(prev[id]||{}), [field]: val } }));
+
+    const calcTotal = (item) => {
+      const bStr = getAmt(item.id, "before");
+      const aStr = getAmt(item.id, "after");
+      const cnt = Number(getAmt(item.id, "count") || 1);
+      const calcOne = (amtStr) => {
+        const n = Number(String(amtStr).replace(/,/g,""));
+        if (!amtStr || isNaN(n) || n === 0) return 0;
+        if (item.freqType === "once") return n;
+        if (item.freqType === "annual") return n * years;
+        if (item.freqType === "per_treatment") return n * cnt * years;
+        if (item.freqType === "daily") return n * cnt * years;
+        return n;
+      };
+      return { before: calcOne(bStr), after: calcOne(aStr) };
+    };
+
+    const fmtInput = (v) => {
+      const raw = String(v).replace(/,/g,"");
+      if (!raw) return "";
+      const n = Number(raw);
+      return isNaN(n) ? raw : n.toLocaleString();
+    };
+
+    const hasData = (item) => getAmt(item.id,"before") || getAmt(item.id,"after");
+    const printItems = allItems.filter(hasData);
+
+    const grandBefore = allItems.reduce((s, item) => s + calcTotal(item).before, 0);
+    const grandAfter = allItems.reduce((s, item) => s + calcTotal(item).after, 0);
+
+    const printContent = () => {
+      const rows = printItems.map(item => {
+        const t = calcTotal(item);
+        const cnt = getAmt(item.id, "count");
+        const cntLabel = (item.freqType === "per_treatment" || item.freqType === "daily") && cnt ? `(${cnt}회/년)` : "";
+        return `<tr>
+          <td style="padding:4px 6px;font-size:11px;border-bottom:1px solid #eee">${item.label}</td>
+          <td style="padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:center">${item.freq}${cntLabel}</td>
+          <td style="padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:right">${getAmt(item.id,"before") ? Number(String(getAmt(item.id,"before")).replace(/,/g,"")).toLocaleString() : "-"}</td>
+          <td style="padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:right">${getAmt(item.id,"after") ? Number(String(getAmt(item.id,"after")).replace(/,/g,"")).toLocaleString() : "-"}</td>
+          <td style="padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:right;color:#555">${t.before > 0 ? t.before.toLocaleString() : "-"}</td>
+          <td style="padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:right;color:#555">${t.after > 0 ? t.after.toLocaleString() : "-"}</td>
+        </tr>`;
+      });
+      const catRows = groupData ? groupData.categories.map(cat => {
+        const catPrintItems = cat.items.filter(hasData);
+        if (catPrintItems.length === 0) return "";
+        const catRows2 = catPrintItems.map(item => {
+          const t = calcTotal(item);
+          const cnt = getAmt(item.id,"count");
+          const cntLabel = (item.freqType === "per_treatment" || item.freqType === "daily") && cnt ? ` (${cnt}회/년)` : "";
+          return `<tr>
+            <td style="padding:3px 6px 3px 16px;font-size:11px;border-bottom:1px solid #f0f0f0">${item.label}</td>
+            <td style="padding:3px 6px;font-size:10px;border-bottom:1px solid #f0f0f0;text-align:center;color:#777">${item.freq}${cntLabel}</td>
+            <td style="padding:3px 6px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right">${getAmt(item.id,"before") ? Number(String(getAmt(item.id,"before")).replace(/,/g,"")).toLocaleString() : ""}</td>
+            <td style="padding:3px 6px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right">${getAmt(item.id,"after") ? Number(String(getAmt(item.id,"after")).replace(/,/g,"")).toLocaleString() : ""}</td>
+            <td style="padding:3px 6px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right;color:#555">${t.before > 0 ? t.before.toLocaleString() : ""}</td>
+            <td style="padding:3px 6px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right;color:#555">${t.after > 0 ? t.after.toLocaleString() : ""}</td>
+          </tr>`;
+        }).join("");
+        const catBefore = catPrintItems.reduce((s,i)=>s+calcTotal(i).before,0);
+        const catAfter = catPrintItems.reduce((s,i)=>s+calcTotal(i).after,0);
+        return `<tr style="background:#fff8f0"><td colspan="2" style="padding:4px 6px;font-size:11px;font-weight:700;color:#c2440c">${cat.cat}</td>
+          <td style="padding:4px 6px;font-size:11px;font-weight:700;text-align:right">${catBefore > 0 ? catBefore.toLocaleString() : ""}</td>
+          <td style="padding:4px 6px;font-size:11px;font-weight:700;text-align:right">${catAfter > 0 ? catAfter.toLocaleString() : ""}</td>
+          <td colspan="2"></td></tr>${catRows2}`;
+      }).join("") : rows.join("");
+
+      const win = window.open("","_blank","width=700,height=900");
+      if (!win) { alert("팝업 차단을 해제해주세요."); return; }
+      win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+        <title>${groupData ? groupData.label : ""} - ${consultClientName}</title>
+        <style>body{font-family:'Malgun Gothic',sans-serif;margin:20px;color:#222} table{border-collapse:collapse;width:100%} @media print{button{display:none}}</style>
+      </head><body>
+        <div style="text-align:center;margin-bottom:12px">
+          <div style="font-size:13px;color:#F97316;font-weight:700">현대해상</div>
+          <div style="font-size:18px;font-weight:900">${groupData ? groupData.label : ""}</div>
+          <div style="font-size:12px;color:#555">고객명: ${consultClientName} &nbsp;|&nbsp; 치료년수: ${years}년</div>
+          <div style="font-size:11px;color:#888;margin-top:2px">담당: ${selBranch} ${nameInput === "__MANUAL__" ? manualNameInput : nameInput}</div>
+        </div>
+        <button onclick="window.print()" style="margin-bottom:10px;padding:8px 20px;background:#F97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">🖨 인쇄</button>
+        <table>
+          <thead><tr style="background:#F97316;color:#fff">
+            <th style="padding:5px 6px;font-size:11px;text-align:left">보장내역</th>
+            <th style="padding:5px 6px;font-size:11px;text-align:center">보장횟수</th>
+            <th style="padding:5px 6px;font-size:11px;text-align:right">보장금액(전)</th>
+            <th style="padding:5px 6px;font-size:11px;text-align:right">보장금액(후)</th>
+            <th style="padding:5px 6px;font-size:11px;text-align:right">${years}년합계(전)</th>
+            <th style="padding:5px 6px;font-size:11px;text-align:right">${years}년합계(후)</th>
+          </tr></thead>
+          <tbody>${catRows}</tbody>
+          <tfoot><tr style="background:#FFF3E0;font-weight:700">
+            <td colspan="2" style="padding:5px 6px;font-size:12px">합계</td>
+            <td style="padding:5px 6px;font-size:12px;text-align:right">${grandBefore.toLocaleString()}</td>
+            <td style="padding:5px 6px;font-size:12px;text-align:right">${grandAfter.toLocaleString()}</td>
+            <td style="padding:5px 6px;font-size:12px;text-align:right">${grandBefore.toLocaleString()}</td>
+            <td style="padding:5px 6px;font-size:12px;text-align:right">${grandAfter.toLocaleString()}</td>
+          </tr></tfoot>
+        </table>
+        <div style="margin-top:10px;font-size:10px;color:#aaa">※ 최초1회한은 연수와 관계없이 1회만 계산, 연간1회한은 연수×1회, 치료당/일당은 연간횟수×연수로 계산</div>
+      </body></html>`);
+      win.document.close();
+    };
+
+    const inputStyle = { width: "100%", padding: "6px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 13, outline: "none", boxSizing: "border-box", textAlign: "right" };
+    const smallInputStyle = { ...inputStyle, fontSize: 12, padding: "5px 6px", background: "#fff9f0" };
+
+    return (
+      <div style={S.root}>
+        <style>{`@media print { .no-print { display:none !important; } }`}</style>
+        <div style={{ ...S.wrap, maxWidth: 600 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+            <button onClick={goBack} style={S.backBtn} className="no-print">←</button>
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 800, color: "#222" }}>영수증컨설팅 실습</div>
+              <div style={{ fontSize: 12, color: "#888" }}>{consultClientName}</div>
+            </div>
+          </div>
+
+          {/* 그룹 탭 */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 12 }} className="no-print">
+            {Object.entries(CONSULT_ITEMS).map(([key, g]) => (
+              <button key={key} onClick={() => setConsultGroup(key)} style={{ flex: 1, padding: "8px 4px", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", background: consultGroup === key ? "#F97316" : "#f5f5f5", color: consultGroup === key ? "#fff" : "#666" }}>
+                {key === "cancer" ? "암" : key === "cerebrovascular" ? "심뇌혈관" : "다빈도"}
+              </button>
+            ))}
+          </div>
+
+          {/* 고객정보 & 치료년수 */}
+          <div style={{ background: "#fff", borderRadius: 12, padding: 14, marginBottom: 12, border: "1px solid #eee", display: "flex", gap: 10, alignItems: "center" }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>고객명</div>
+              <input value={consultClientName} onChange={e => setConsultClientName(e.target.value)} style={{ ...inputStyle, textAlign: "left" }} placeholder="고객명 입력" />
+            </div>
+            <div style={{ width: 100 }}>
+              <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>치료 년수</div>
+              <input type="number" min="1" max="30" value={consultYears} onChange={e => setConsultYears(e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+
+          {groupData && groupData.categories.length === 0 && (
+            <div style={{ textAlign: "center", padding: 40, color: "#aaa", fontSize: 14 }}>다빈도 항목은 추후 추가 예정입니다.</div>
+          )}
+
+          {/* 항목 입력 테이블 */}
+          {groupData && groupData.categories.map(cat => {
+            const catBefore = cat.items.reduce((s,item) => s + calcTotal(item).before, 0);
+            const catAfter = cat.items.reduce((s,item) => s + calcTotal(item).after, 0);
+            return (
+              <div key={cat.cat} style={{ background: "#fff", borderRadius: 12, border: "1px solid #eee", marginBottom: 10, overflow: "hidden" }}>
+                <div style={{ background: "#FFF3E0", padding: "8px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: "#c2440c" }}>{cat.cat}</span>
+                  <span style={{ fontSize: 11, color: "#888" }}>
+                    소계: <b style={{ color: "#c2440c" }}>{catBefore > 0 ? catBefore.toLocaleString() : "-"}</b> / <b style={{ color: "#1565c0" }}>{catAfter > 0 ? catAfter.toLocaleString() : "-"}</b>
+                  </span>
+                </div>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 400 }}>
+                    <thead>
+                      <tr style={{ background: "#fafafa" }}>
+                        <th style={{ padding: "6px 10px", fontSize: 11, fontWeight: 600, color: "#555", textAlign: "left", borderBottom: "1px solid #eee" }}>보장내역</th>
+                        <th style={{ padding: "6px 6px", fontSize: 11, fontWeight: 600, color: "#555", textAlign: "right", borderBottom: "1px solid #eee", minWidth: 80 }}>보장금액(전)</th>
+                        <th style={{ padding: "6px 6px", fontSize: 11, fontWeight: 600, color: "#555", textAlign: "right", borderBottom: "1px solid #eee", minWidth: 80 }}>보장금액(후)</th>
+                        {cat.items.some(i => i.freqType === "per_treatment" || i.freqType === "daily") &&
+                          <th style={{ padding: "6px 6px", fontSize: 11, fontWeight: 600, color: "#888", textAlign: "center", borderBottom: "1px solid #eee", minWidth: 60 }}>연간횟수</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cat.items.map(item => {
+                        const t = calcTotal(item);
+                        const showCount = item.freqType === "per_treatment" || item.freqType === "daily";
+                        const hasCountCol = cat.items.some(i => i.freqType === "per_treatment" || i.freqType === "daily");
+                        const active = hasData(item);
+                        return (
+                          <tr key={item.id} style={{ borderBottom: "1px solid #f5f5f5", background: active ? "#fffaf7" : "#fff" }}>
+                            <td style={{ padding: "8px 10px" }}>
+                              <div style={{ fontSize: 12, fontWeight: active ? 700 : 400, color: active ? "#222" : "#555" }}>{item.label}</div>
+                              <div style={{ fontSize: 10, color: "#aaa", marginTop: 1 }}>{item.freq}</div>
+                              {active && (t.before > 0 || t.after > 0) && (
+                                <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>
+                                  {years}년: {t.before > 0 ? <span style={{ color: "#c2440c" }}>{t.before.toLocaleString()}원</span> : null}{t.before > 0 && t.after > 0 ? " / " : null}{t.after > 0 ? <span style={{ color: "#1565c0" }}>{t.after.toLocaleString()}원</span> : null}
+                                </div>
+                              )}
+                            </td>
+                            <td style={{ padding: "8px 6px", verticalAlign: "middle" }}>
+                              <input
+                                value={fmtInput(getAmt(item.id,"before"))}
+                                onChange={e => setAmt(item.id, "before", e.target.value.replace(/,/g,""))}
+                                placeholder="0"
+                                style={{ ...inputStyle, borderColor: getAmt(item.id,"before") ? "#F97316" : "#ddd", minWidth: 72 }}
+                              />
+                            </td>
+                            <td style={{ padding: "8px 6px", verticalAlign: "middle" }}>
+                              <input
+                                value={fmtInput(getAmt(item.id,"after"))}
+                                onChange={e => setAmt(item.id, "after", e.target.value.replace(/,/g,""))}
+                                placeholder="0"
+                                style={{ ...inputStyle, borderColor: getAmt(item.id,"after") ? "#1565c0" : "#ddd", minWidth: 72 }}
+                              />
+                            </td>
+                            {hasCountCol && (
+                              <td style={{ padding: "8px 6px", verticalAlign: "middle" }}>
+                                {showCount && (
+                                  <input
+                                    type="number" min="1"
+                                    value={getAmt(item.id,"count")}
+                                    onChange={e => setAmt(item.id, "count", e.target.value)}
+                                    placeholder="횟수"
+                                    style={{ ...smallInputStyle, minWidth: 52 }}
+                                  />
+                                )}
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* 합계 */}
+          {grandBefore > 0 || grandAfter > 0 ? (
+            <div style={{ background: "#FFF3E0", borderRadius: 12, padding: 14, border: "1px solid #f5c48a", marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#c2440c", marginBottom: 8 }}>📊 합산 ({years}년 기준)</div>
+              <div style={{ display: "flex", gap: 16 }}>
+                <div style={{ flex: 1, textAlign: "center" }}>
+                  <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>전 합계</div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: "#c2440c" }}>{grandBefore.toLocaleString()}<span style={{ fontSize: 12, fontWeight: 400 }}>원</span></div>
+                </div>
+                <div style={{ width: 1, background: "#f5c48a" }} />
+                <div style={{ flex: 1, textAlign: "center" }}>
+                  <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>후 합계</div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: "#1565c0" }}>{grandAfter.toLocaleString()}<span style={{ fontSize: 12, fontWeight: 400 }}>원</span></div>
+                </div>
+              </div>
+              {grandAfter > grandBefore && (
+                <div style={{ textAlign: "center", marginTop: 8, fontSize: 12, color: "#1565c0" }}>
+                  ↑ {(grandAfter - grandBefore).toLocaleString()}원 증가
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {/* 출력 버튼 */}
+          <button onClick={printContent} className="no-print" style={{ width: "100%", padding: 14, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 12, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", marginBottom: 20 }}>
+            🖨 출력 (사진으로 저장)
+          </button>
+
+          <div style={{ fontSize: 10, color: "#bbb", textAlign: "center", marginBottom: 24, paddingBottom: 20 }}>
+            ※ 최초1회한: 연수 무관 1회만 / 연간1회한: 연수×1 / 치료당·일당: 연간횟수×연수
+          </div>
+        </div>
+      </div>
     );
   }
 
