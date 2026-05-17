@@ -418,8 +418,54 @@ const CONSULT_ITEMS = {
     ]
   },
   frequent: {
-    label: "다빈도 보장 컨설팅",
-    categories: []
+    label: "다빈도질환 보장 컨설팅",
+    categories: [
+      { cat: "입원", items: [
+        { id:"fa01", label:"질병입원일당", freq:"180일/30일/10일", freqType:"daily" },
+        { id:"fa02", label:"질병수술입원일당", freq:"120일/10일", freqType:"daily" },
+        { id:"fa03", label:"질병수술입원일당(종합병원)", freq:"120일", freqType:"daily" },
+        { id:"fa04", label:"질병수술입원일당(상급종합병원)", freq:"120일", freqType:"daily" },
+        { id:"fa05", label:"질병입원일당(1인실)(종합병원)", freq:"30일", freqType:"daily" },
+        { id:"fa06", label:"질병입원일당(1인실)(상급종합병원)", freq:"30일", freqType:"daily" },
+        { id:"fa07", label:"질병입원일당(2~3인실)(종합병원)", freq:"30일", freqType:"daily" },
+        { id:"fa08", label:"질병입원일당(2~3인실)(상급종합병원)", freq:"30일", freqType:"daily" },
+        { id:"fa09", label:"간호·간병통합서비스(일반/재활병동)", freq:"30일/60일", freqType:"daily" },
+      ]},
+      { cat: "검사", items: [
+        { id:"fb01", label:"질병CT검사지원비", freq:"급여,연간1회한", freqType:"annual" },
+        { id:"fb02", label:"질병MRI검사지원비", freq:"급여,연간1회한", freqType:"annual" },
+      ]},
+      { cat: "진단", items: [
+        { id:"fc01", label:"당뇨병진단(당화혈색소6.5%이상)", freq:"최초1회한", freqType:"once" },
+        { id:"fc02", label:"당뇨병진단(당화혈색소7.5%이상)", freq:"최초1회한", freqType:"once" },
+        { id:"fc03", label:"결핵진단", freq:"최초1회한", freqType:"once" },
+        { id:"fc04", label:"위·십이지장·대장양성종양(폴립포함)진단", freq:"연간1회한", freqType:"annual" },
+        { id:"fc05", label:"특정바이러스질환진단", freq:"최초1회한", freqType:"once" },
+        { id:"fc06", label:"대상포진진단", freq:"최초1회한", freqType:"once" },
+        { id:"fc07", label:"통풍진단", freq:"최초1회한", freqType:"once" },
+        { id:"fc08", label:"크론병진단", freq:"최초1회한", freqType:"once" },
+        { id:"fc09", label:"다발경화증진단", freq:"최초1회한", freqType:"once" },
+        { id:"fc10", label:"만성당뇨합병증진단", freq:"최초1회한", freqType:"once" },
+      ]},
+      { cat: "치료", items: [
+        { id:"fd01", label:"질병수술(1-5종)", freq:"수술회당지급", freqType:"per_treatment" },
+        { id:"fd02", label:"120대질병수술", freq:"수술회당지급", freqType:"per_treatment" },
+        { id:"fd03", label:"5대기관질병수술(관혈/비관혈)", freq:"각각 연간1회한", freqType:"annual" },
+        { id:"fd04", label:"질병수술", freq:"365일내1회", freqType:"annual" },
+        { id:"fd05", label:"질병수술(백내장및대장용종제외)", freq:"365일내1회", freqType:"annual" },
+        { id:"fd06", label:"질병수술(종합병원)", freq:"365일내1회", freqType:"annual" },
+        { id:"fd07", label:"질병수술(상급종합병원)", freq:"365일내1회", freqType:"annual" },
+        { id:"fd08", label:"남성특정비뇨기계질환수술", freq:"최초1회한", freqType:"once" },
+        { id:"fd09", label:"여성특정생식기질환수술", freq:"수술회당지급", freqType:"per_treatment" },
+        { id:"fd10", label:"특정질환로봇수술", freq:"연간1회한", freqType:"annual" },
+        { id:"fd11", label:"당뇨고혈압질환수술", freq:"수술1회당", freqType:"per_treatment" },
+        { id:"fd12", label:"추간판장애수술", freq:"수술1회당", freqType:"per_treatment" },
+        { id:"fd13", label:"충수염수술", freq:"최초1회한", freqType:"once" },
+        { id:"fd14", label:"탈장수술", freq:"수술1회당", freqType:"per_treatment" },
+        { id:"fd15", label:"질병특정급여시술치료", freq:"연간1회한", freqType:"annual" },
+        { id:"fd16", label:"갑상선항진증치료", freq:"최초1회한", freqType:"once" },
+      ]},
+    ]
   },
 };
 
@@ -861,6 +907,7 @@ export default function App() {
   const [consultAmounts, setConsultAmounts] = useState({});
   const [consultYears, setConsultYears] = useState(1);
   const [consultClientName, setConsultClientName] = useState("");
+  const [consultCustomItems, setConsultCustomItems] = useState({ cancer: [], cerebrovascular: [], frequent: [] });
   const pageHistoryRef = useRef([]);
   const wakeLockRef = useRef(null);
   const [pendingEvalText, setPendingEvalText] = useState("");
@@ -1205,11 +1252,24 @@ export default function App() {
   // ═══════════ RECEIPT CONSULT ═══════════
   if (page === "receiptConsult") {
     const groupData = CONSULT_ITEMS[consultGroup];
-    const allItems = groupData ? groupData.categories.flatMap(c => c.items) : [];
+    const customItems = consultCustomItems[consultGroup] || [];
+    const allItems = [...(groupData ? groupData.categories.flatMap(c => c.items) : []), ...customItems];
     const years = Math.max(1, Number(consultYears) || 1);
 
     const getAmt = (id, field) => consultAmounts[id]?.[field] || "";
     const setAmt = (id, field, val) => setConsultAmounts(prev => ({ ...prev, [id]: { ...(prev[id]||{}), [field]: val } }));
+
+    const addCustomItem = () => {
+      const newId = `custom_${consultGroup}_${Date.now()}`;
+      setConsultCustomItems(prev => ({ ...prev, [consultGroup]: [...(prev[consultGroup]||[]), { id: newId, label: "", freq: "최초1회한", freqType: "once" }] }));
+    };
+    const updateCustomItem = (id, field, val) => {
+      setConsultCustomItems(prev => ({ ...prev, [consultGroup]: (prev[consultGroup]||[]).map(i => i.id === id ? { ...i, [field]: val } : i) }));
+    };
+    const removeCustomItem = (id) => {
+      setConsultCustomItems(prev => ({ ...prev, [consultGroup]: (prev[consultGroup]||[]).filter(i => i.id !== id) }));
+      setConsultAmounts(prev => { const n = { ...prev }; delete n[id]; return n; });
+    };
 
     const calcTotal = (item) => {
       const bStr = getAmt(item.id, "before");
@@ -1254,22 +1314,23 @@ export default function App() {
           <td style="padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:right;color:#555">${t.after > 0 ? t.after.toLocaleString() : "-"}</td>
         </tr>`;
       });
-      const catRows = groupData ? groupData.categories.map(cat => {
+      const renderPrintRow = (item) => {
+        const t = calcTotal(item);
+        const cnt = getAmt(item.id,"count");
+        const cntLabel = (item.freqType === "per_treatment" || item.freqType === "daily") && cnt ? ` (${cnt}회/년)` : "";
+        return `<tr>
+          <td style="padding:3px 6px 3px 16px;font-size:11px;border-bottom:1px solid #f0f0f0">${item.label}</td>
+          <td style="padding:3px 6px;font-size:10px;border-bottom:1px solid #f0f0f0;text-align:center;color:#777">${item.freq||""}${cntLabel}</td>
+          <td style="padding:3px 6px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right">${getAmt(item.id,"before") ? Number(String(getAmt(item.id,"before")).replace(/,/g,"")).toLocaleString() : ""}</td>
+          <td style="padding:3px 6px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right">${getAmt(item.id,"after") ? Number(String(getAmt(item.id,"after")).replace(/,/g,"")).toLocaleString() : ""}</td>
+          <td style="padding:3px 6px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right;color:#555">${t.before > 0 ? t.before.toLocaleString() : ""}</td>
+          <td style="padding:3px 6px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right;color:#555">${t.after > 0 ? t.after.toLocaleString() : ""}</td>
+        </tr>`;
+      };
+      const standardCatRows = groupData ? groupData.categories.map(cat => {
         const catPrintItems = cat.items.filter(hasData);
         if (catPrintItems.length === 0) return "";
-        const catRows2 = catPrintItems.map(item => {
-          const t = calcTotal(item);
-          const cnt = getAmt(item.id,"count");
-          const cntLabel = (item.freqType === "per_treatment" || item.freqType === "daily") && cnt ? ` (${cnt}회/년)` : "";
-          return `<tr>
-            <td style="padding:3px 6px 3px 16px;font-size:11px;border-bottom:1px solid #f0f0f0">${item.label}</td>
-            <td style="padding:3px 6px;font-size:10px;border-bottom:1px solid #f0f0f0;text-align:center;color:#777">${item.freq}${cntLabel}</td>
-            <td style="padding:3px 6px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right">${getAmt(item.id,"before") ? Number(String(getAmt(item.id,"before")).replace(/,/g,"")).toLocaleString() : ""}</td>
-            <td style="padding:3px 6px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right">${getAmt(item.id,"after") ? Number(String(getAmt(item.id,"after")).replace(/,/g,"")).toLocaleString() : ""}</td>
-            <td style="padding:3px 6px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right;color:#555">${t.before > 0 ? t.before.toLocaleString() : ""}</td>
-            <td style="padding:3px 6px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right;color:#555">${t.after > 0 ? t.after.toLocaleString() : ""}</td>
-          </tr>`;
-        }).join("");
+        const catRows2 = catPrintItems.map(renderPrintRow).join("");
         const catBefore = catPrintItems.reduce((s,i)=>s+calcTotal(i).before,0);
         const catAfter = catPrintItems.reduce((s,i)=>s+calcTotal(i).after,0);
         return `<tr style="background:#fff8f0"><td colspan="2" style="padding:4px 6px;font-size:11px;font-weight:700;color:#c2440c">${cat.cat}</td>
@@ -1277,6 +1338,14 @@ export default function App() {
           <td style="padding:4px 6px;font-size:11px;font-weight:700;text-align:right">${catAfter > 0 ? catAfter.toLocaleString() : ""}</td>
           <td colspan="2"></td></tr>${catRows2}`;
       }).join("") : rows.join("");
+      const customPrintItems = customItems.filter(i => i.label && hasData(i));
+      const customSection = customPrintItems.length > 0
+        ? `<tr style="background:#fff8f0"><td colspan="2" style="padding:4px 6px;font-size:11px;font-weight:700;color:#c2440c">추가 담보</td>
+            <td style="padding:4px 6px;font-size:11px;font-weight:700;text-align:right">${customPrintItems.reduce((s,i)=>s+calcTotal(i).before,0).toLocaleString()}</td>
+            <td style="padding:4px 6px;font-size:11px;font-weight:700;text-align:right">${customPrintItems.reduce((s,i)=>s+calcTotal(i).after,0).toLocaleString()}</td>
+            <td colspan="2"></td></tr>${customPrintItems.map(renderPrintRow).join("")}`
+        : "";
+      const catRows = standardCatRows + customSection;
 
       const win = window.open("","_blank","width=700,height=900");
       if (!win) { alert("팝업 차단을 해제해주세요."); return; }
@@ -1455,6 +1524,45 @@ export default function App() {
               )}
             </div>
           ) : null}
+
+          {/* 추가 담보 입력 */}
+          <div style={{ background: "#fff", borderRadius: 12, border: "2px dashed #F97316", marginBottom: 12, overflow: "hidden" }}>
+            <div style={{ background: "#FFF3E0", padding: "8px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 13, fontWeight: 800, color: "#c2440c" }}>➕ 추가 담보</span>
+              <button onClick={addCustomItem} style={{ padding: "4px 12px", background: "#F97316", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ 항목 추가</button>
+            </div>
+            {customItems.length === 0 && (
+              <div style={{ padding: "16px", textAlign: "center", color: "#bbb", fontSize: 12 }}>새로 나온 담보를 직접 추가할 수 있습니다</div>
+            )}
+            {customItems.map(item => {
+              const t = calcTotal(item);
+              const showCount = item.freqType === "per_treatment" || item.freqType === "daily";
+              return (
+                <div key={item.id} style={{ padding: "10px 12px", borderTop: "1px solid #f0f0f0" }}>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+                    <input value={item.label} onChange={e => updateCustomItem(item.id, "label", e.target.value)} placeholder="담보명 입력" style={{ flex: 1, padding: "6px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, outline: "none" }} />
+                    <select value={item.freqType} onChange={e => updateCustomItem(item.id, "freqType", e.target.value)} style={{ padding: "6px 4px", border: "1px solid #ddd", borderRadius: 6, fontSize: 11, outline: "none", background: "#fff" }}>
+                      <option value="once">최초1회한</option>
+                      <option value="annual">연간1회한</option>
+                      <option value="per_treatment">치료당/수술당</option>
+                      <option value="daily">일당(한도일수)</option>
+                    </select>
+                    <button onClick={() => removeCustomItem(item.id)} style={{ padding: "4px 8px", background: "#fee2e2", border: "none", borderRadius: 6, color: "#dc2626", fontSize: 12, cursor: "pointer", fontWeight: 700 }}>✕</button>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input value={fmtInput(getAmt(item.id,"before"))} onChange={e => setAmt(item.id,"before",e.target.value.replace(/,/g,""))} placeholder="전 금액" style={{ flex: 1, padding: "6px 8px", border: "1px solid #F97316", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
+                    <input value={fmtInput(getAmt(item.id,"after"))} onChange={e => setAmt(item.id,"after",e.target.value.replace(/,/g,""))} placeholder="후 금액" style={{ flex: 1, padding: "6px 8px", border: "1px solid #1565c0", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
+                    {showCount && <input type="number" min="1" value={getAmt(item.id,"count")} onChange={e => setAmt(item.id,"count",e.target.value)} placeholder="횟수" style={{ width: 60, padding: "6px 6px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right", background: "#fff9f0" }} />}
+                  </div>
+                  {(t.before > 0 || t.after > 0) && (
+                    <div style={{ fontSize: 10, color: "#888", marginTop: 4 }}>
+                      {years}년: {t.before > 0 ? <span style={{ color: "#c2440c" }}>{t.before.toLocaleString()}원</span> : null}{t.before > 0 && t.after > 0 ? " / " : null}{t.after > 0 ? <span style={{ color: "#1565c0" }}>{t.after.toLocaleString()}원</span> : null}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
 
           {/* 출력 버튼 */}
           <button onClick={printContent} className="no-print" style={{ width: "100%", padding: 14, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 12, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", marginBottom: 20 }}>
