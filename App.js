@@ -335,15 +335,6 @@ const CONSULT_ITEMS = {
         { id:"ca11", label:"특정암입원통원비", freq:"120일한", freqType:"daily" },
         { id:"ca12", label:"소아암입원통원비", freq:"120일한", freqType:"daily" },
       ]},
-      { cat: "진단", items: [
-        { id:"cd01", label:"암(일반암)진단비", freq:"최초1회한", freqType:"once", date:"2024.02" },
-        { id:"cd02", label:"특정(소화기/소아)암진단비", freq:"최초1회한", freqType:"once", date:"2024.07" },
-        { id:"cd03", label:"소아청소년암진단비", freq:"최초1회한", freqType:"once" },
-        { id:"cd04", label:"위암/전립선/유방암등 진단비", freq:"최초1회한", freqType:"once" },
-        { id:"cd05", label:"고액암(혈액암)진단비", freq:"최초1회한", freqType:"once" },
-        { id:"cd06", label:"뇌암/골수암 진단비", freq:"최초1회한", freqType:"once" },
-        { id:"cd07", label:"특정암(입원적격)실손의료비", freq:"연간한도", freqType:"annual" },
-      ]},
       { cat: "수술", items: [
         { id:"cs01", label:"암수술비(7~5종)", freq:"수술당지급", freqType:"per_treatment" },
         { id:"cs02", label:"항암수술비", freq:"수술당지급", freqType:"per_treatment" },
@@ -365,6 +356,15 @@ const CONSULT_ITEMS = {
         { id:"ct10", label:"항암방사선치료후3년지급", freq:"최초1회한", freqType:"once" },
         { id:"ct11", label:"항암약물치료(특정)", freq:"최초1회한", freqType:"once", date:"2024.10" },
         { id:"ct12", label:"다제내성암(특정)약물치료", freq:"최초1회한", freqType:"once", date:"2025.04" },
+      ]},
+      { cat: "진단", items: [
+        { id:"cd01", label:"암(일반암)진단비", freq:"최초1회한", freqType:"once", date:"2024.02" },
+        { id:"cd02", label:"특정(소화기/소아)암진단비", freq:"최초1회한", freqType:"once", date:"2024.07" },
+        { id:"cd03", label:"소아청소년암진단비", freq:"최초1회한", freqType:"once" },
+        { id:"cd04", label:"위암/전립선/유방암등 진단비", freq:"최초1회한", freqType:"once" },
+        { id:"cd05", label:"고액암(혈액암)진단비", freq:"최초1회한", freqType:"once" },
+        { id:"cd06", label:"뇌암/골수암 진단비", freq:"최초1회한", freqType:"once" },
+        { id:"cd07", label:"특정암(입원적격)실손의료비", freq:"연간한도", freqType:"annual" },
       ]},
       { cat: "기타", items: [
         { id:"ce01", label:"암검진비용", freq:"연간1회한", freqType:"annual" },
@@ -1173,9 +1173,8 @@ export default function App() {
           {error && <div style={S.errorBox}>{error}</div>}
           <button onClick={() => {
             const finalName = nameInput === "__MANUAL__" ? manualNameInput.trim() : nameInput;
-            if (!selRegion || !selCenter || !selBranch || !finalName) { setError("소속과 이름을 먼저 선택해주세요."); return; }
             setError("");
-            setConsultClientName(finalName);
+            setConsultClientName(finalName || "");
             setConsultAmounts({});
             setConsultYears(1);
             navigate("receiptConsult");
