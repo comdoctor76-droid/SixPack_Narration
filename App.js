@@ -1269,14 +1269,18 @@ export default function App() {
       setConsultAmounts(prev => { const n = { ...prev }; delete n[id]; return n; });
     };
 
-    // Returns totals in 만원; daily uses 일수 field; per_treatment × years (1/년)
+    // Returns totals in 만원; per_treatment uses count field (× years if no count); daily uses 일수 × years
     const calcTotal = (item) => {
       const calcOne = (amtStr) => {
         const n = Number(String(amtStr || "").replace(/,/g,""));
         if (!amtStr || isNaN(n) || n === 0) return 0;
         if (item.freqType === "once") return n;
         if (item.freqType === "annual") return n * years;
-        if (item.freqType === "per_treatment") return n * years;
+        if (item.freqType === "per_treatment") {
+          const cntStr = getAmt(item.id, "count");
+          const cnt = cntStr !== "" ? Number(cntStr) : null;
+          return cnt !== null ? n * cnt : n * years;
+        }
         if (item.freqType === "daily") {
           const days = Number(getAmt(item.id, "days") || 0);
           return n * days * years;
@@ -1295,7 +1299,8 @@ export default function App() {
       const renderPrintRow = (item) => {
         const t = calcTotal(item);
         const days = getAmt(item.id,"days");
-        const freqLabel = item.freqType === "daily" && days ? `${item.freq||""} / ${days}일` : (item.freq||"");
+        const count = getAmt(item.id,"count");
+        const freqLabel = item.freqType === "daily" && days ? `${item.freq||""} / ${days}일` : item.freqType === "per_treatment" && count ? `${item.freq||""} / ${count}회` : (item.freq||"");
         const dateLabel = item.date ? `<div style="font-size:9px;color:#F97316;margin-top:1px">${item.date}</div>` : "";
         const bv = getAmt(item.id,"before"); const av = getAmt(item.id,"after");
         return `<tr>
@@ -1397,6 +1402,7 @@ export default function App() {
             const catBefore = cat.items.reduce((s,item) => s + calcTotal(item).before, 0);
             const catAfter = cat.items.reduce((s,item) => s + calcTotal(item).after, 0);
             const hasDaily = cat.items.some(i => i.freqType === "daily");
+            const hasPT = cat.items.some(i => i.freqType === "per_treatment");
             return (
               <div key={cat.cat} style={{ background: "#fff", borderRadius: 10, border: "1px solid #eee", marginBottom: 8, overflow: "hidden" }}>
                 <div style={{ background: "#FFF3E0", padding: "6px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1408,8 +1414,9 @@ export default function App() {
                 {/* 헤더 */}
                 <div style={{ display: "flex", background: "#fafafa", borderBottom: "1px solid #eee", padding: "4px 0" }}>
                   <div style={{ flex: 1, fontSize: 10, color: "#666", fontWeight: 600, padding: "0 8px" }}>보장내역</div>
-                  <div style={{ width: hasDaily ? "17%" : "19%", fontSize: 10, color: "#c2440c", fontWeight: 700, textAlign: "center" }}>전(만)</div>
-                  <div style={{ width: hasDaily ? "17%" : "19%", fontSize: 10, color: "#1565c0", fontWeight: 700, textAlign: "center" }}>후(만)</div>
+                  <div style={{ width: (hasPT || hasDaily) ? "17%" : "19%", fontSize: 10, color: "#c2440c", fontWeight: 700, textAlign: "center" }}>전(만)</div>
+                  {hasPT && <div style={{ width: "14%", fontSize: 10, color: "#888", fontWeight: 600, textAlign: "center" }}>횟수</div>}
+                  <div style={{ width: (hasPT || hasDaily) ? "17%" : "19%", fontSize: 10, color: "#1565c0", fontWeight: 700, textAlign: "center" }}>후(만)</div>
                   {hasDaily && <div style={{ width: "14%", fontSize: 10, color: "#888", fontWeight: 600, textAlign: "center" }}>일수</div>}
                 </div>
                 {cat.items.map(item => {
@@ -1429,11 +1436,16 @@ export default function App() {
                           </div>
                         )}
                       </div>
-                      <div style={{ width: hasDaily ? "17%" : "19%", padding: "0 3px" }}>
+                      <div style={{ width: (hasPT || hasDaily) ? "17%" : "19%", padding: "0 3px" }}>
                         <input type="number" min="0" value={getAmt(item.id,"before")} onChange={e => setAmt(item.id,"before",e.target.value)}
                           style={{ ...iStyle, borderColor: getAmt(item.id,"before") ? "#F97316" : "#ddd" }} />
                       </div>
-                      <div style={{ width: hasDaily ? "17%" : "19%", padding: "0 3px" }}>
+                      {hasPT && (
+                        <div style={{ width: "14%", padding: "0 3px" }}>
+                          {item.freqType === "per_treatment" && <input type="number" min="0" value={getAmt(item.id,"count")} onChange={e => setAmt(item.id,"count",e.target.value)} style={{ ...dStyle, textAlign: "center" }} placeholder="횟수" />}
+                        </div>
+                      )}
+                      <div style={{ width: (hasPT || hasDaily) ? "17%" : "19%", padding: "0 3px" }}>
                         <input type="number" min="0" value={getAmt(item.id,"after")} onChange={e => setAmt(item.id,"after",e.target.value)}
                           style={{ ...iStyle, borderColor: getAmt(item.id,"after") ? "#1565c0" : "#ddd" }} />
                       </div>
