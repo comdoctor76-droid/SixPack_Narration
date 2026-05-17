@@ -1256,6 +1256,7 @@ export default function App() {
     const allItems = [...(groupData ? groupData.categories.flatMap(c => c.items) : []), ...customItems];
     const years = Math.max(1, Number(consultYears) || 1);
 
+    // amounts stored & displayed in 만원 units
     const getAmt = (id, field) => consultAmounts[id]?.[field] || "";
     const setAmt = (id, field, val) => setConsultAmounts(prev => ({ ...prev, [id]: { ...(prev[id]||{}), [field]: val } }));
 
@@ -1271,292 +1272,240 @@ export default function App() {
       setConsultAmounts(prev => { const n = { ...prev }; delete n[id]; return n; });
     };
 
+    // Returns totals in 만원; daily uses 일수 field; per_treatment × years (1/년)
     const calcTotal = (item) => {
-      const bStr = getAmt(item.id, "before");
-      const aStr = getAmt(item.id, "after");
-      const cnt = Number(getAmt(item.id, "count") || 1);
       const calcOne = (amtStr) => {
-        const n = Number(String(amtStr).replace(/,/g,""));
+        const n = Number(String(amtStr || "").replace(/,/g,""));
         if (!amtStr || isNaN(n) || n === 0) return 0;
         if (item.freqType === "once") return n;
         if (item.freqType === "annual") return n * years;
-        if (item.freqType === "per_treatment") return n * cnt * years;
-        if (item.freqType === "daily") return n * cnt * years;
+        if (item.freqType === "per_treatment") return n * years;
+        if (item.freqType === "daily") {
+          const days = Number(getAmt(item.id, "days") || 0);
+          return n * days * years;
+        }
         return n;
       };
-      return { before: calcOne(bStr), after: calcOne(aStr) };
-    };
-
-    const fmtInput = (v) => {
-      const raw = String(v).replace(/,/g,"");
-      if (!raw) return "";
-      const n = Number(raw);
-      return isNaN(n) ? raw : n.toLocaleString();
+      return { before: calcOne(getAmt(item.id,"before")), after: calcOne(getAmt(item.id,"after")) };
     };
 
     const hasData = (item) => getAmt(item.id,"before") || getAmt(item.id,"after");
-    const printItems = allItems.filter(hasData);
-
     const grandBefore = allItems.reduce((s, item) => s + calcTotal(item).before, 0);
     const grandAfter = allItems.reduce((s, item) => s + calcTotal(item).after, 0);
 
+    // Print popup
     const printContent = () => {
-      const rows = printItems.map(item => {
-        const t = calcTotal(item);
-        const cnt = getAmt(item.id, "count");
-        const cntLabel = (item.freqType === "per_treatment" || item.freqType === "daily") && cnt ? `(${cnt}회/년)` : "";
-        return `<tr>
-          <td style="padding:4px 6px;font-size:11px;border-bottom:1px solid #eee">${item.label}</td>
-          <td style="padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:center">${item.freq}${cntLabel}</td>
-          <td style="padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:right">${getAmt(item.id,"before") ? Number(String(getAmt(item.id,"before")).replace(/,/g,"")).toLocaleString() : "-"}</td>
-          <td style="padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:right">${getAmt(item.id,"after") ? Number(String(getAmt(item.id,"after")).replace(/,/g,"")).toLocaleString() : "-"}</td>
-          <td style="padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:right;color:#555">${t.before > 0 ? t.before.toLocaleString() : "-"}</td>
-          <td style="padding:4px 6px;font-size:11px;border-bottom:1px solid #eee;text-align:right;color:#555">${t.after > 0 ? t.after.toLocaleString() : "-"}</td>
-        </tr>`;
-      });
       const renderPrintRow = (item) => {
         const t = calcTotal(item);
-        const cnt = getAmt(item.id,"count");
-        const cntLabel = (item.freqType === "per_treatment" || item.freqType === "daily") && cnt ? ` (${cnt}회/년)` : "";
+        const days = getAmt(item.id,"days");
+        const freqLabel = item.freqType === "daily" && days ? `${item.freq||""} / ${days}일` : (item.freq||"");
+        const bv = getAmt(item.id,"before"); const av = getAmt(item.id,"after");
         return `<tr>
-          <td style="padding:3px 6px 3px 16px;font-size:11px;border-bottom:1px solid #f0f0f0">${item.label}</td>
-          <td style="padding:3px 6px;font-size:10px;border-bottom:1px solid #f0f0f0;text-align:center;color:#777">${item.freq||""}${cntLabel}</td>
-          <td style="padding:3px 6px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right">${getAmt(item.id,"before") ? Number(String(getAmt(item.id,"before")).replace(/,/g,"")).toLocaleString() : ""}</td>
-          <td style="padding:3px 6px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right">${getAmt(item.id,"after") ? Number(String(getAmt(item.id,"after")).replace(/,/g,"")).toLocaleString() : ""}</td>
-          <td style="padding:3px 6px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right;color:#555">${t.before > 0 ? t.before.toLocaleString() : ""}</td>
-          <td style="padding:3px 6px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right;color:#555">${t.after > 0 ? t.after.toLocaleString() : ""}</td>
+          <td style="padding:3px 6px 3px 14px;font-size:11px;border-bottom:1px solid #f0f0f0">${item.label||""}</td>
+          <td style="padding:3px 5px;font-size:10px;border-bottom:1px solid #f0f0f0;text-align:center;color:#777">${freqLabel}</td>
+          <td style="padding:3px 5px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right">${bv ? Number(bv).toLocaleString()+"만" : ""}</td>
+          <td style="padding:3px 5px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right">${av ? Number(av).toLocaleString()+"만" : ""}</td>
+          <td style="padding:3px 5px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right;color:#c00">${t.before > 0 ? t.before.toLocaleString()+"만" : ""}</td>
+          <td style="padding:3px 5px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right;color:#1565c0">${t.after > 0 ? t.after.toLocaleString()+"만" : ""}</td>
         </tr>`;
       };
-      const standardCatRows = groupData ? groupData.categories.map(cat => {
-        const catPrintItems = cat.items.filter(hasData);
-        if (catPrintItems.length === 0) return "";
-        const catRows2 = catPrintItems.map(renderPrintRow).join("");
-        const catBefore = catPrintItems.reduce((s,i)=>s+calcTotal(i).before,0);
-        const catAfter = catPrintItems.reduce((s,i)=>s+calcTotal(i).after,0);
+      const catSection = groupData ? groupData.categories.map(cat => {
+        const items = cat.items.filter(hasData);
+        if (!items.length) return "";
+        const cb = items.reduce((s,i)=>s+calcTotal(i).before,0);
+        const ca = items.reduce((s,i)=>s+calcTotal(i).after,0);
         return `<tr style="background:#fff8f0"><td colspan="2" style="padding:4px 6px;font-size:11px;font-weight:700;color:#c2440c">${cat.cat}</td>
-          <td style="padding:4px 6px;font-size:11px;font-weight:700;text-align:right">${catBefore > 0 ? catBefore.toLocaleString() : ""}</td>
-          <td style="padding:4px 6px;font-size:11px;font-weight:700;text-align:right">${catAfter > 0 ? catAfter.toLocaleString() : ""}</td>
-          <td colspan="2"></td></tr>${catRows2}`;
-      }).join("") : rows.join("");
-      const customPrintItems = customItems.filter(i => i.label && hasData(i));
-      const customSection = customPrintItems.length > 0
-        ? `<tr style="background:#fff8f0"><td colspan="2" style="padding:4px 6px;font-size:11px;font-weight:700;color:#c2440c">추가 담보</td>
-            <td style="padding:4px 6px;font-size:11px;font-weight:700;text-align:right">${customPrintItems.reduce((s,i)=>s+calcTotal(i).before,0).toLocaleString()}</td>
-            <td style="padding:4px 6px;font-size:11px;font-weight:700;text-align:right">${customPrintItems.reduce((s,i)=>s+calcTotal(i).after,0).toLocaleString()}</td>
-            <td colspan="2"></td></tr>${customPrintItems.map(renderPrintRow).join("")}`
-        : "";
-      const catRows = standardCatRows + customSection;
-
-      const win = window.open("","_blank","width=700,height=900");
+          <td style="padding:4px 5px;font-size:11px;font-weight:700;text-align:right;color:#c00">${cb>0?cb.toLocaleString()+"만":""}</td>
+          <td style="padding:4px 5px;font-size:11px;font-weight:700;text-align:right;color:#1565c0">${ca>0?ca.toLocaleString()+"만":""}</td>
+          <td colspan="2"></td></tr>${items.map(renderPrintRow).join("")}`;
+      }).join("") : "";
+      const customPrint = customItems.filter(i=>i.label&&hasData(i));
+      const customSec = customPrint.length ? `<tr style="background:#fff8f0"><td colspan="2" style="padding:4px 6px;font-size:11px;font-weight:700;color:#c2440c">추가 담보</td>
+        <td style="text-align:right;padding:4px 5px;font-size:11px;color:#c00">${customPrint.reduce((s,i)=>s+calcTotal(i).before,0).toLocaleString()}만</td>
+        <td style="text-align:right;padding:4px 5px;font-size:11px;color:#1565c0">${customPrint.reduce((s,i)=>s+calcTotal(i).after,0).toLocaleString()}만</td>
+        <td colspan="2"></td></tr>${customPrint.map(renderPrintRow).join("")}` : "";
+      const win = window.open("","_blank","width=680,height=900");
       if (!win) { alert("팝업 차단을 해제해주세요."); return; }
       win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
-        <title>${groupData ? groupData.label : ""} - ${consultClientName}</title>
-        <style>body{font-family:'Malgun Gothic',sans-serif;margin:20px;color:#222} table{border-collapse:collapse;width:100%} @media print{button{display:none}}</style>
+        <title>${groupData?groupData.label:""} - ${consultClientName}</title>
+        <style>body{font-family:'Malgun Gothic',sans-serif;margin:16px;color:#222}table{border-collapse:collapse;width:100%}@media print{button{display:none}}</style>
       </head><body>
-        <div style="text-align:center;margin-bottom:12px">
-          <div style="font-size:13px;color:#F97316;font-weight:700">현대해상</div>
-          <div style="font-size:18px;font-weight:900">${groupData ? groupData.label : ""}</div>
-          <div style="font-size:12px;color:#555">고객명: ${consultClientName} &nbsp;|&nbsp; 치료년수: ${years}년</div>
-          <div style="font-size:11px;color:#888;margin-top:2px">담당: ${selBranch} ${nameInput === "__MANUAL__" ? manualNameInput : nameInput}</div>
+        <div style="text-align:center;margin-bottom:10px">
+          <div style="font-size:12px;color:#F97316;font-weight:700">현대해상</div>
+          <div style="font-size:17px;font-weight:900">${groupData?groupData.label:""}</div>
+          <div style="font-size:11px;color:#555">고객명: <b>${consultClientName}</b> &nbsp;|&nbsp; 치료년수: <b>${years}년</b></div>
+          <div style="font-size:10px;color:#888">담당: ${selBranch} ${nameInput==="__MANUAL__"?manualNameInput:nameInput}</div>
         </div>
-        <button onclick="window.print()" style="margin-bottom:10px;padding:8px 20px;background:#F97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">🖨 인쇄</button>
-        <table>
-          <thead><tr style="background:#F97316;color:#fff">
-            <th style="padding:5px 6px;font-size:11px;text-align:left">보장내역</th>
-            <th style="padding:5px 6px;font-size:11px;text-align:center">보장횟수</th>
-            <th style="padding:5px 6px;font-size:11px;text-align:right">보장금액(전)</th>
-            <th style="padding:5px 6px;font-size:11px;text-align:right">보장금액(후)</th>
-            <th style="padding:5px 6px;font-size:11px;text-align:right">${years}년합계(전)</th>
-            <th style="padding:5px 6px;font-size:11px;text-align:right">${years}년합계(후)</th>
-          </tr></thead>
-          <tbody>${catRows}</tbody>
-          <tfoot><tr style="background:#FFF3E0;font-weight:700">
-            <td colspan="2" style="padding:5px 6px;font-size:12px">합계</td>
-            <td style="padding:5px 6px;font-size:12px;text-align:right">${grandBefore.toLocaleString()}</td>
-            <td style="padding:5px 6px;font-size:12px;text-align:right">${grandAfter.toLocaleString()}</td>
-            <td style="padding:5px 6px;font-size:12px;text-align:right">${grandBefore.toLocaleString()}</td>
-            <td style="padding:5px 6px;font-size:12px;text-align:right">${grandAfter.toLocaleString()}</td>
-          </tr></tfoot>
-        </table>
-        <div style="margin-top:10px;font-size:10px;color:#aaa">※ 최초1회한은 연수와 관계없이 1회만 계산, 연간1회한은 연수×1회, 치료당/일당은 연간횟수×연수로 계산</div>
+        <button onclick="window.print()" style="margin-bottom:8px;padding:6px 18px;background:#F97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">🖨 인쇄</button>
+        <table><thead><tr style="background:#F97316;color:#fff">
+          <th style="padding:4px 6px;font-size:10px;text-align:left">보장내역</th>
+          <th style="padding:4px 5px;font-size:10px;text-align:center">보장횟수</th>
+          <th style="padding:4px 5px;font-size:10px;text-align:right">전(만원)</th>
+          <th style="padding:4px 5px;font-size:10px;text-align:right">후(만원)</th>
+          <th style="padding:4px 5px;font-size:10px;text-align:right">${years}년합계(전)</th>
+          <th style="padding:4px 5px;font-size:10px;text-align:right">${years}년합계(후)</th>
+        </tr></thead>
+        <tbody>${catSection}${customSec}</tbody>
+        <tfoot><tr style="background:#FFF3E0;font-weight:700">
+          <td colspan="2" style="padding:4px 6px;font-size:11px">합계</td>
+          <td colspan="2"></td>
+          <td style="padding:4px 5px;font-size:12px;text-align:right;color:#c00">${grandBefore.toLocaleString()}만원</td>
+          <td style="padding:4px 5px;font-size:12px;text-align:right;color:#1565c0">${grandAfter.toLocaleString()}만원</td>
+        </tr></tfoot></table>
+        <div style="margin-top:8px;font-size:9px;color:#aaa">※ 금액단위:만원 / 최초1회한=1회 / 연간·치료당=×${years}년 / 일당=일수×${years}년</div>
       </body></html>`);
       win.document.close();
     };
 
-    const inputStyle = { width: "100%", padding: "6px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 13, outline: "none", boxSizing: "border-box", textAlign: "right" };
-    const smallInputStyle = { ...inputStyle, fontSize: 12, padding: "5px 6px", background: "#fff9f0" };
+    // Compact input styles for mobile (no horizontal scroll)
+    const iStyle = { width: "100%", padding: "5px 4px", border: "1px solid #ddd", borderRadius: 5, fontSize: 12, outline: "none", boxSizing: "border-box", textAlign: "right" };
+    const dStyle = { ...iStyle, background: "#fff9f0", fontSize: 11 };
 
     return (
       <div style={S.root}>
-        <style>{`@media print { .no-print { display:none !important; } }`}</style>
-        <div style={{ ...S.wrap, maxWidth: 600 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+        <style>{`@media print{.no-print{display:none!important}}`}</style>
+        <div style={{ ...S.wrap, maxWidth: 600, padding: "16px 10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
             <button onClick={goBack} style={S.backBtn} className="no-print">←</button>
             <div>
-              <div style={{ fontSize: 17, fontWeight: 800, color: "#222" }}>영수증컨설팅 실습</div>
-              <div style={{ fontSize: 12, color: "#888" }}>{consultClientName}</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#222" }}>영수증컨설팅 실습</div>
+              <div style={{ fontSize: 11, color: "#888" }}>{consultClientName}</div>
             </div>
           </div>
 
           {/* 그룹 탭 */}
-          <div style={{ display: "flex", gap: 6, marginBottom: 12 }} className="no-print">
-            {Object.entries(CONSULT_ITEMS).map(([key, g]) => (
-              <button key={key} onClick={() => setConsultGroup(key)} style={{ flex: 1, padding: "8px 4px", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", background: consultGroup === key ? "#F97316" : "#f5f5f5", color: consultGroup === key ? "#fff" : "#666" }}>
+          <div style={{ display: "flex", gap: 5, marginBottom: 10 }} className="no-print">
+            {Object.entries(CONSULT_ITEMS).map(([key]) => (
+              <button key={key} onClick={() => setConsultGroup(key)} style={{ flex: 1, padding: "7px 2px", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", background: consultGroup === key ? "#F97316" : "#f5f5f5", color: consultGroup === key ? "#fff" : "#666" }}>
                 {key === "cancer" ? "암" : key === "cerebrovascular" ? "심뇌혈관" : "다빈도"}
               </button>
             ))}
           </div>
 
           {/* 고객정보 & 치료년수 */}
-          <div style={{ background: "#fff", borderRadius: 12, padding: 14, marginBottom: 12, border: "1px solid #eee", display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ background: "#fff", borderRadius: 10, padding: "10px 12px", marginBottom: 10, border: "1px solid #eee", display: "flex", gap: 8, alignItems: "flex-end" }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>고객명</div>
-              <input value={consultClientName} onChange={e => setConsultClientName(e.target.value)} style={{ ...inputStyle, textAlign: "left" }} placeholder="고객명 입력" />
+              <div style={{ fontSize: 10, color: "#888", marginBottom: 3 }}>고객명</div>
+              <input value={consultClientName} onChange={e => setConsultClientName(e.target.value)} style={{ ...iStyle, textAlign: "left" }} placeholder="고객명" />
             </div>
-            <div style={{ width: 100 }}>
-              <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>치료 년수</div>
-              <input type="number" min="1" max="30" value={consultYears} onChange={e => setConsultYears(e.target.value)} style={inputStyle} />
+            <div style={{ width: 80 }}>
+              <div style={{ fontSize: 10, color: "#888", marginBottom: 3 }}>치료 년수</div>
+              <input type="number" min="1" max="30" value={consultYears} onChange={e => setConsultYears(e.target.value)} style={iStyle} />
             </div>
           </div>
 
-          {groupData && groupData.categories.length === 0 && (
-            <div style={{ textAlign: "center", padding: 40, color: "#aaa", fontSize: 14 }}>다빈도 항목은 추후 추가 예정입니다.</div>
-          )}
-
-          {/* 항목 입력 테이블 */}
+          {/* 항목 입력 — 컬럼: 보장내역 | 전(만) | 후(만) | 일수(일당만) */}
           {groupData && groupData.categories.map(cat => {
             const catBefore = cat.items.reduce((s,item) => s + calcTotal(item).before, 0);
             const catAfter = cat.items.reduce((s,item) => s + calcTotal(item).after, 0);
+            const hasDaily = cat.items.some(i => i.freqType === "daily");
             return (
-              <div key={cat.cat} style={{ background: "#fff", borderRadius: 12, border: "1px solid #eee", marginBottom: 10, overflow: "hidden" }}>
-                <div style={{ background: "#FFF3E0", padding: "8px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: "#c2440c" }}>{cat.cat}</span>
-                  <span style={{ fontSize: 11, color: "#888" }}>
-                    소계: <b style={{ color: "#c2440c" }}>{catBefore > 0 ? catBefore.toLocaleString() : "-"}</b> / <b style={{ color: "#1565c0" }}>{catAfter > 0 ? catAfter.toLocaleString() : "-"}</b>
+              <div key={cat.cat} style={{ background: "#fff", borderRadius: 10, border: "1px solid #eee", marginBottom: 8, overflow: "hidden" }}>
+                <div style={{ background: "#FFF3E0", padding: "6px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: "#c2440c" }}>{cat.cat}</span>
+                  <span style={{ fontSize: 10, color: "#888" }}>
+                    소계: <b style={{ color: "#c2440c" }}>{catBefore > 0 ? catBefore.toLocaleString()+"만" : "-"}</b> / <b style={{ color: "#1565c0" }}>{catAfter > 0 ? catAfter.toLocaleString()+"만" : "-"}</b>
                   </span>
                 </div>
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 400 }}>
-                    <thead>
-                      <tr style={{ background: "#fafafa" }}>
-                        <th style={{ padding: "6px 10px", fontSize: 11, fontWeight: 600, color: "#555", textAlign: "left", borderBottom: "1px solid #eee" }}>보장내역</th>
-                        <th style={{ padding: "6px 6px", fontSize: 11, fontWeight: 600, color: "#555", textAlign: "right", borderBottom: "1px solid #eee", minWidth: 80 }}>보장금액(전)</th>
-                        <th style={{ padding: "6px 6px", fontSize: 11, fontWeight: 600, color: "#555", textAlign: "right", borderBottom: "1px solid #eee", minWidth: 80 }}>보장금액(후)</th>
-                        {cat.items.some(i => i.freqType === "per_treatment" || i.freqType === "daily") &&
-                          <th style={{ padding: "6px 6px", fontSize: 11, fontWeight: 600, color: "#888", textAlign: "center", borderBottom: "1px solid #eee", minWidth: 60 }}>연간횟수</th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {cat.items.map(item => {
-                        const t = calcTotal(item);
-                        const showCount = item.freqType === "per_treatment" || item.freqType === "daily";
-                        const hasCountCol = cat.items.some(i => i.freqType === "per_treatment" || i.freqType === "daily");
-                        const active = hasData(item);
-                        return (
-                          <tr key={item.id} style={{ borderBottom: "1px solid #f5f5f5", background: active ? "#fffaf7" : "#fff" }}>
-                            <td style={{ padding: "8px 10px" }}>
-                              <div style={{ fontSize: 12, fontWeight: active ? 700 : 400, color: active ? "#222" : "#555" }}>{item.label}</div>
-                              <div style={{ fontSize: 10, color: "#aaa", marginTop: 1 }}>{item.freq}</div>
-                              {active && (t.before > 0 || t.after > 0) && (
-                                <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>
-                                  {years}년: {t.before > 0 ? <span style={{ color: "#c2440c" }}>{t.before.toLocaleString()}원</span> : null}{t.before > 0 && t.after > 0 ? " / " : null}{t.after > 0 ? <span style={{ color: "#1565c0" }}>{t.after.toLocaleString()}원</span> : null}
-                                </div>
-                              )}
-                            </td>
-                            <td style={{ padding: "8px 6px", verticalAlign: "middle" }}>
-                              <input
-                                value={fmtInput(getAmt(item.id,"before"))}
-                                onChange={e => setAmt(item.id, "before", e.target.value.replace(/,/g,""))}
-                                placeholder="0"
-                                style={{ ...inputStyle, borderColor: getAmt(item.id,"before") ? "#F97316" : "#ddd", minWidth: 72 }}
-                              />
-                            </td>
-                            <td style={{ padding: "8px 6px", verticalAlign: "middle" }}>
-                              <input
-                                value={fmtInput(getAmt(item.id,"after"))}
-                                onChange={e => setAmt(item.id, "after", e.target.value.replace(/,/g,""))}
-                                placeholder="0"
-                                style={{ ...inputStyle, borderColor: getAmt(item.id,"after") ? "#1565c0" : "#ddd", minWidth: 72 }}
-                              />
-                            </td>
-                            {hasCountCol && (
-                              <td style={{ padding: "8px 6px", verticalAlign: "middle" }}>
-                                {showCount && (
-                                  <input
-                                    type="number" min="1"
-                                    value={getAmt(item.id,"count")}
-                                    onChange={e => setAmt(item.id, "count", e.target.value)}
-                                    placeholder="횟수"
-                                    style={{ ...smallInputStyle, minWidth: 52 }}
-                                  />
-                                )}
-                              </td>
-                            )}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                {/* 헤더 */}
+                <div style={{ display: "flex", background: "#fafafa", borderBottom: "1px solid #eee", padding: "4px 0" }}>
+                  <div style={{ flex: 1, fontSize: 10, color: "#666", fontWeight: 600, padding: "0 8px" }}>보장내역</div>
+                  <div style={{ width: hasDaily ? "17%" : "19%", fontSize: 10, color: "#c2440c", fontWeight: 700, textAlign: "center" }}>전(만)</div>
+                  <div style={{ width: hasDaily ? "17%" : "19%", fontSize: 10, color: "#1565c0", fontWeight: 700, textAlign: "center" }}>후(만)</div>
+                  {hasDaily && <div style={{ width: "14%", fontSize: 10, color: "#888", fontWeight: 600, textAlign: "center" }}>일수</div>}
                 </div>
+                {cat.items.map(item => {
+                  const t = calcTotal(item);
+                  const active = hasData(item);
+                  const isDaily = item.freqType === "daily";
+                  return (
+                    <div key={item.id} style={{ display: "flex", alignItems: "center", borderBottom: "1px solid #f5f5f5", background: active ? "#fffaf7" : "#fff", padding: "5px 0" }}>
+                      <div style={{ flex: 1, padding: "0 8px" }}>
+                        <div style={{ fontSize: 11, fontWeight: active ? 700 : 400, color: active ? "#222" : "#555", lineHeight: 1.3, wordBreak: "keep-all" }}>{item.label}</div>
+                        <div style={{ fontSize: 9, color: "#bbb", marginTop: 1 }}>{item.freq}</div>
+                        {active && (t.before > 0 || t.after > 0) && (
+                          <div style={{ fontSize: 9, marginTop: 1 }}>
+                            {t.before > 0 && <span style={{ color: "#c2440c" }}>{t.before.toLocaleString()}만</span>}
+                            {t.before > 0 && t.after > 0 && <span style={{ color: "#bbb" }}> / </span>}
+                            {t.after > 0 && <span style={{ color: "#1565c0" }}>{t.after.toLocaleString()}만</span>}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ width: hasDaily ? "17%" : "19%", padding: "0 3px" }}>
+                        <input type="number" min="0" value={getAmt(item.id,"before")} onChange={e => setAmt(item.id,"before",e.target.value)}
+                          style={{ ...iStyle, borderColor: getAmt(item.id,"before") ? "#F97316" : "#ddd" }} />
+                      </div>
+                      <div style={{ width: hasDaily ? "17%" : "19%", padding: "0 3px" }}>
+                        <input type="number" min="0" value={getAmt(item.id,"after")} onChange={e => setAmt(item.id,"after",e.target.value)}
+                          style={{ ...iStyle, borderColor: getAmt(item.id,"after") ? "#1565c0" : "#ddd" }} />
+                      </div>
+                      {hasDaily && (
+                        <div style={{ width: "14%", padding: "0 3px" }}>
+                          {isDaily && <input type="number" min="0" value={getAmt(item.id,"days")} onChange={e => setAmt(item.id,"days",e.target.value)} style={dStyle} placeholder="일" />}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
 
           {/* 합계 */}
-          {grandBefore > 0 || grandAfter > 0 ? (
-            <div style={{ background: "#FFF3E0", borderRadius: 12, padding: 14, border: "1px solid #f5c48a", marginBottom: 12 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#c2440c", marginBottom: 8 }}>📊 합산 ({years}년 기준)</div>
-              <div style={{ display: "flex", gap: 16 }}>
+          {(grandBefore > 0 || grandAfter > 0) && (
+            <div style={{ background: "#FFF3E0", borderRadius: 10, padding: "12px 14px", border: "1px solid #f5c48a", marginBottom: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#c2440c", marginBottom: 6 }}>📊 {years}년 합산</div>
+              <div style={{ display: "flex", gap: 12 }}>
                 <div style={{ flex: 1, textAlign: "center" }}>
-                  <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>전 합계</div>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: "#c2440c" }}>{grandBefore.toLocaleString()}<span style={{ fontSize: 12, fontWeight: 400 }}>원</span></div>
+                  <div style={{ fontSize: 10, color: "#888", marginBottom: 3 }}>전 합계</div>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: "#c2440c" }}>{grandBefore.toLocaleString()}<span style={{ fontSize: 11, fontWeight: 400 }}>만원</span></div>
                 </div>
                 <div style={{ width: 1, background: "#f5c48a" }} />
                 <div style={{ flex: 1, textAlign: "center" }}>
-                  <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>후 합계</div>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: "#1565c0" }}>{grandAfter.toLocaleString()}<span style={{ fontSize: 12, fontWeight: 400 }}>원</span></div>
+                  <div style={{ fontSize: 10, color: "#888", marginBottom: 3 }}>후 합계</div>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: "#1565c0" }}>{grandAfter.toLocaleString()}<span style={{ fontSize: 11, fontWeight: 400 }}>만원</span></div>
                 </div>
               </div>
-              {grandAfter > grandBefore && (
-                <div style={{ textAlign: "center", marginTop: 8, fontSize: 12, color: "#1565c0" }}>
-                  ↑ {(grandAfter - grandBefore).toLocaleString()}원 증가
+              {grandAfter !== grandBefore && (
+                <div style={{ textAlign: "center", marginTop: 6, fontSize: 11, color: grandAfter > grandBefore ? "#1565c0" : "#dc2626" }}>
+                  {grandAfter > grandBefore ? "↑" : "↓"} {Math.abs(grandAfter - grandBefore).toLocaleString()}만원 {grandAfter > grandBefore ? "증가" : "감소"}
                 </div>
               )}
             </div>
-          ) : null}
+          )}
 
-          {/* 추가 담보 입력 */}
-          <div style={{ background: "#fff", borderRadius: 12, border: "2px dashed #F97316", marginBottom: 12, overflow: "hidden" }}>
-            <div style={{ background: "#FFF3E0", padding: "8px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 13, fontWeight: 800, color: "#c2440c" }}>➕ 추가 담보</span>
-              <button onClick={addCustomItem} style={{ padding: "4px 12px", background: "#F97316", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ 항목 추가</button>
+          {/* 추가 담보 */}
+          <div style={{ background: "#fff", borderRadius: 10, border: "2px dashed #F97316", marginBottom: 10, overflow: "hidden" }}>
+            <div style={{ background: "#FFF3E0", padding: "6px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: "#c2440c" }}>➕ 추가 담보</span>
+              <button onClick={addCustomItem} style={{ padding: "3px 10px", background: "#F97316", border: "none", borderRadius: 5, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>+ 추가</button>
             </div>
-            {customItems.length === 0 && (
-              <div style={{ padding: "16px", textAlign: "center", color: "#bbb", fontSize: 12 }}>새로 나온 담보를 직접 추가할 수 있습니다</div>
-            )}
+            {customItems.length === 0 && <div style={{ padding: "12px", textAlign: "center", color: "#bbb", fontSize: 11 }}>새 담보를 직접 추가할 수 있습니다</div>}
             {customItems.map(item => {
               const t = calcTotal(item);
-              const showCount = item.freqType === "per_treatment" || item.freqType === "daily";
+              const isDaily = item.freqType === "daily";
               return (
-                <div key={item.id} style={{ padding: "10px 12px", borderTop: "1px solid #f0f0f0" }}>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
-                    <input value={item.label} onChange={e => updateCustomItem(item.id, "label", e.target.value)} placeholder="담보명 입력" style={{ flex: 1, padding: "6px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, outline: "none" }} />
-                    <select value={item.freqType} onChange={e => updateCustomItem(item.id, "freqType", e.target.value)} style={{ padding: "6px 4px", border: "1px solid #ddd", borderRadius: 6, fontSize: 11, outline: "none", background: "#fff" }}>
+                <div key={item.id} style={{ padding: "8px 10px", borderTop: "1px solid #f0f0f0" }}>
+                  <div style={{ display: "flex", gap: 5, alignItems: "center", marginBottom: 5 }}>
+                    <input value={item.label} onChange={e => updateCustomItem(item.id,"label",e.target.value)} placeholder="담보명" style={{ flex: 1, padding: "5px 6px", border: "1px solid #ddd", borderRadius: 5, fontSize: 11, outline: "none" }} />
+                    <select value={item.freqType} onChange={e => updateCustomItem(item.id,"freqType",e.target.value)} style={{ padding: "5px 2px", border: "1px solid #ddd", borderRadius: 5, fontSize: 10, outline: "none", background: "#fff" }}>
                       <option value="once">최초1회한</option>
                       <option value="annual">연간1회한</option>
-                      <option value="per_treatment">치료당/수술당</option>
-                      <option value="daily">일당(한도일수)</option>
+                      <option value="per_treatment">치료당</option>
+                      <option value="daily">일당</option>
                     </select>
-                    <button onClick={() => removeCustomItem(item.id)} style={{ padding: "4px 8px", background: "#fee2e2", border: "none", borderRadius: 6, color: "#dc2626", fontSize: 12, cursor: "pointer", fontWeight: 700 }}>✕</button>
+                    <button onClick={() => removeCustomItem(item.id)} style={{ padding: "3px 7px", background: "#fee2e2", border: "none", borderRadius: 5, color: "#dc2626", fontSize: 12, cursor: "pointer", fontWeight: 700 }}>✕</button>
                   </div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <input value={fmtInput(getAmt(item.id,"before"))} onChange={e => setAmt(item.id,"before",e.target.value.replace(/,/g,""))} placeholder="전 금액" style={{ flex: 1, padding: "6px 8px", border: "1px solid #F97316", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
-                    <input value={fmtInput(getAmt(item.id,"after"))} onChange={e => setAmt(item.id,"after",e.target.value.replace(/,/g,""))} placeholder="후 금액" style={{ flex: 1, padding: "6px 8px", border: "1px solid #1565c0", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
-                    {showCount && <input type="number" min="1" value={getAmt(item.id,"count")} onChange={e => setAmt(item.id,"count",e.target.value)} placeholder="횟수" style={{ width: 60, padding: "6px 6px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right", background: "#fff9f0" }} />}
+                  <div style={{ display: "flex", gap: 5 }}>
+                    <input type="number" min="0" value={getAmt(item.id,"before")} onChange={e => setAmt(item.id,"before",e.target.value)} placeholder="전(만)" style={{ flex: 1, ...iStyle, borderColor: "#F97316" }} />
+                    <input type="number" min="0" value={getAmt(item.id,"after")} onChange={e => setAmt(item.id,"after",e.target.value)} placeholder="후(만)" style={{ flex: 1, ...iStyle, borderColor: "#1565c0" }} />
+                    {isDaily && <input type="number" min="0" value={getAmt(item.id,"days")} onChange={e => setAmt(item.id,"days",e.target.value)} placeholder="일수" style={{ width: 56, ...dStyle }} />}
                   </div>
                   {(t.before > 0 || t.after > 0) && (
-                    <div style={{ fontSize: 10, color: "#888", marginTop: 4 }}>
-                      {years}년: {t.before > 0 ? <span style={{ color: "#c2440c" }}>{t.before.toLocaleString()}원</span> : null}{t.before > 0 && t.after > 0 ? " / " : null}{t.after > 0 ? <span style={{ color: "#1565c0" }}>{t.after.toLocaleString()}원</span> : null}
+                    <div style={{ fontSize: 9, color: "#888", marginTop: 3 }}>
+                      {t.before > 0 && <span style={{ color: "#c2440c" }}>{t.before.toLocaleString()}만</span>}
+                      {t.before > 0 && t.after > 0 && " / "}
+                      {t.after > 0 && <span style={{ color: "#1565c0" }}>{t.after.toLocaleString()}만</span>}
                     </div>
                   )}
                 </div>
@@ -1564,13 +1513,12 @@ export default function App() {
             })}
           </div>
 
-          {/* 출력 버튼 */}
-          <button onClick={printContent} className="no-print" style={{ width: "100%", padding: 14, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 12, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", marginBottom: 20 }}>
-            🖨 출력 (사진으로 저장)
+          {/* 출력 */}
+          <button onClick={printContent} className="no-print" style={{ width: "100%", padding: 13, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 8 }}>
+            🖨 출력 (인쇄 / 사진저장)
           </button>
-
-          <div style={{ fontSize: 10, color: "#bbb", textAlign: "center", marginBottom: 24, paddingBottom: 20 }}>
-            ※ 최초1회한: 연수 무관 1회만 / 연간1회한: 연수×1 / 치료당·일당: 연간횟수×연수
+          <div style={{ fontSize: 9, color: "#ccc", textAlign: "center", marginBottom: 24, paddingBottom: 20 }}>
+            금액단위: 만원 &nbsp;|&nbsp; 최초1회한=1회 / 연간·치료당=×{years}년 / 일당=일수×{years}년
           </div>
         </div>
       </div>
