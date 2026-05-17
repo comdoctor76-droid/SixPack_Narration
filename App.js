@@ -1301,15 +1301,15 @@ export default function App() {
         const days = getAmt(item.id,"days");
         const count = getAmt(item.id,"count");
         const freqLabel = item.freqType === "daily" && days ? `${item.freq||""} / ${days}일` : item.freqType === "per_treatment" && count ? `${item.freq||""} / ${count}회` : (item.freq||"");
-        const dateLabel = item.date ? `<div style="font-size:9px;color:#F97316;margin-top:1px">${item.date}</div>` : "";
+        const dateLabel = item.date ? `<div style="font-size:12px;color:#F97316;margin-top:1px">${item.date}</div>` : "";
         const bv = getAmt(item.id,"before"); const av = getAmt(item.id,"after");
         return `<tr>
-          <td style="padding:3px 6px 3px 14px;font-size:11px;border-bottom:1px solid #f0f0f0">${item.label||""}</td>
-          <td style="padding:3px 5px;font-size:10px;border-bottom:1px solid #f0f0f0;text-align:center;color:#777">${freqLabel}${dateLabel}</td>
-          <td style="padding:3px 5px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right">${bv ? Number(bv).toLocaleString()+"만" : ""}</td>
-          <td style="padding:3px 5px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right">${av ? Number(av).toLocaleString()+"만" : ""}</td>
-          <td style="padding:3px 5px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right;color:#c00">${t.before > 0 ? t.before.toLocaleString()+"만" : ""}</td>
-          <td style="padding:3px 5px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right;color:#1565c0">${t.after > 0 ? t.after.toLocaleString()+"만" : ""}</td>
+          <td style="padding:3px 6px 3px 14px;font-size:14px;border-bottom:1px solid #f0f0f0">${item.label||""}</td>
+          <td style="padding:3px 5px;font-size:13px;border-bottom:1px solid #f0f0f0;text-align:center;color:#777">${freqLabel}${dateLabel}</td>
+          <td style="padding:3px 5px;font-size:14px;border-bottom:1px solid #f0f0f0;text-align:right">${bv ? Number(bv).toLocaleString()+"만" : ""}</td>
+          <td style="padding:3px 5px;font-size:14px;border-bottom:1px solid #f0f0f0;text-align:right">${av ? Number(av).toLocaleString()+"만" : ""}</td>
+          <td style="padding:3px 5px;font-size:14px;border-bottom:1px solid #f0f0f0;text-align:right;color:#c00">${t.before > 0 ? t.before.toLocaleString()+"만" : ""}</td>
+          <td style="padding:3px 5px;font-size:14px;border-bottom:1px solid #f0f0f0;text-align:right;color:#1565c0">${t.after > 0 ? t.after.toLocaleString()+"만" : ""}</td>
         </tr>`;
       };
       const catSection = groupData ? groupData.categories.map(cat => {
@@ -1317,45 +1317,77 @@ export default function App() {
         if (!items.length) return "";
         const cb = items.reduce((s,i)=>s+calcTotal(i).before,0);
         const ca = items.reduce((s,i)=>s+calcTotal(i).after,0);
-        return `<tr style="background:#fff8f0"><td colspan="2" style="padding:4px 6px;font-size:11px;font-weight:700;color:#c2440c">${cat.cat}</td>
-          <td style="padding:4px 5px;font-size:11px;font-weight:700;text-align:right;color:#c00">${cb>0?cb.toLocaleString()+"만":""}</td>
-          <td style="padding:4px 5px;font-size:11px;font-weight:700;text-align:right;color:#1565c0">${ca>0?ca.toLocaleString()+"만":""}</td>
+        return `<tr style="background:#fff8f0"><td colspan="2" style="padding:4px 6px;font-size:14px;font-weight:700;color:#c2440c">${cat.cat}</td>
+          <td style="padding:4px 5px;font-size:14px;font-weight:700;text-align:right;color:#c00">${cb>0?cb.toLocaleString()+"만":""}</td>
+          <td style="padding:4px 5px;font-size:14px;font-weight:700;text-align:right;color:#1565c0">${ca>0?ca.toLocaleString()+"만":""}</td>
           <td colspan="2"></td></tr>${items.map(renderPrintRow).join("")}`;
       }).join("") : "";
       const customPrint = customItems.filter(i=>i.label&&hasData(i));
-      const customSec = customPrint.length ? `<tr style="background:#fff8f0"><td colspan="2" style="padding:4px 6px;font-size:11px;font-weight:700;color:#c2440c">추가 담보</td>
-        <td style="text-align:right;padding:4px 5px;font-size:11px;color:#c00">${customPrint.reduce((s,i)=>s+calcTotal(i).before,0).toLocaleString()}만</td>
-        <td style="text-align:right;padding:4px 5px;font-size:11px;color:#1565c0">${customPrint.reduce((s,i)=>s+calcTotal(i).after,0).toLocaleString()}만</td>
+      const customSec = customPrint.length ? `<tr style="background:#fff8f0"><td colspan="2" style="padding:4px 6px;font-size:14px;font-weight:700;color:#c2440c">추가 담보</td>
+        <td style="text-align:right;padding:4px 5px;font-size:14px;color:#c00">${customPrint.reduce((s,i)=>s+calcTotal(i).before,0).toLocaleString()}만</td>
+        <td style="text-align:right;padding:4px 5px;font-size:14px;color:#1565c0">${customPrint.reduce((s,i)=>s+calcTotal(i).after,0).toLocaleString()}만</td>
         <td colspan="2"></td></tr>${customPrint.map(renderPrintRow).join("")}` : "";
-      const win = window.open("","_blank","width=680,height=900");
+      const staffName = nameInput==="__MANUAL__"?manualNameInput:nameInput;
+      const titleText = groupData?groupData.label:"";
+      const sc = "\x3C/script>";
+      const win = window.open("","_blank","width=780,height=900");
       if (!win) { alert("팝업 차단을 해제해주세요."); return; }
       win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
-        <title>${groupData?groupData.label:""} - ${consultClientName}</title>
-        <style>body{font-family:'Malgun Gothic',sans-serif;margin:16px;color:#222}table{border-collapse:collapse;width:100%}@media print{button{display:none}}</style>
+        <title>${titleText} - ${consultClientName}</title>
+        <style>
+          body{font-family:'Malgun Gothic',sans-serif;margin:16px;color:#222}
+          table{border-collapse:collapse;width:100%}
+          @media print{#btns{display:none!important}}
+        </style>
+        <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js">${sc}
+        <script>
+        function saveImage(){
+          var btns=document.getElementById('btns');
+          btns.style.display='none';
+          html2canvas(document.body,{scale:2,useCORS:true,backgroundColor:'#ffffff'}).then(function(canvas){
+            btns.style.display='';
+            canvas.toBlob(function(blob){
+              var fileName='${titleText}_${consultClientName}.png';
+              var file=new File([blob],fileName,{type:'image/png'});
+              if(navigator.canShare&&navigator.canShare({files:[file]})){
+                navigator.share({files:[file],title:'${titleText}',text:'${consultClientName} 보장 컨설팅'}).catch(function(){});
+              } else {
+                var url=URL.createObjectURL(blob);
+                var a=document.createElement('a');
+                a.href=url; a.download=fileName; a.click();
+                setTimeout(function(){URL.revokeObjectURL(url);},1000);
+              }
+            },'image/png');
+          });
+        }
+        ${sc}
       </head><body>
         <div style="text-align:center;margin-bottom:10px">
-          <div style="font-size:12px;color:#F97316;font-weight:700">현대해상</div>
-          <div style="font-size:17px;font-weight:900">${groupData?groupData.label:""}</div>
-          <div style="font-size:11px;color:#555">고객명: <b>${consultClientName}</b> &nbsp;|&nbsp; 치료년수: <b>${years}년</b></div>
-          <div style="font-size:10px;color:#888">담당: ${selBranch} ${nameInput==="__MANUAL__"?manualNameInput:nameInput}</div>
+          <div style="font-size:15px;color:#F97316;font-weight:700">현대해상</div>
+          <div style="font-size:20px;font-weight:900">${titleText}</div>
+          <div style="font-size:14px;color:#555">고객명: <b>${consultClientName}</b> &nbsp;|&nbsp; 치료년수: <b>${years}년</b></div>
+          <div style="font-size:13px;color:#888">담당: ${selBranch} ${staffName}</div>
         </div>
-        <button onclick="window.print()" style="margin-bottom:8px;padding:6px 18px;background:#F97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">🖨 인쇄</button>
+        <div id="btns" style="margin-bottom:8px;display:flex;gap:6px">
+          <button onclick="window.print()" style="padding:6px 18px;background:#F97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:15px">🖨 인쇄</button>
+          <button onclick="saveImage()" style="padding:6px 18px;background:#1565c0;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:15px">📷 사진저장</button>
+        </div>
         <table><thead><tr style="background:#F97316;color:#fff">
-          <th style="padding:4px 6px;font-size:10px;text-align:left">보장내역</th>
-          <th style="padding:4px 5px;font-size:10px;text-align:center">보장횟수 / 출시일</th>
-          <th style="padding:4px 5px;font-size:10px;text-align:right">전(만원)</th>
-          <th style="padding:4px 5px;font-size:10px;text-align:right">후(만원)</th>
-          <th style="padding:4px 5px;font-size:10px;text-align:right">${years}년합계(전)</th>
-          <th style="padding:4px 5px;font-size:10px;text-align:right">${years}년합계(후)</th>
+          <th style="padding:4px 6px;font-size:13px;text-align:left">보장내역</th>
+          <th style="padding:4px 5px;font-size:13px;text-align:center">보장횟수 / 출시일</th>
+          <th style="padding:4px 5px;font-size:13px;text-align:right">전(만원)</th>
+          <th style="padding:4px 5px;font-size:13px;text-align:right">후(만원)</th>
+          <th style="padding:4px 5px;font-size:13px;text-align:right">${years}년합계(전)</th>
+          <th style="padding:4px 5px;font-size:13px;text-align:right">${years}년합계(후)</th>
         </tr></thead>
         <tbody>${catSection}${customSec}</tbody>
         <tfoot><tr style="background:#FFF3E0;font-weight:700">
-          <td colspan="2" style="padding:4px 6px;font-size:11px">합계</td>
+          <td colspan="2" style="padding:4px 6px;font-size:14px">합계</td>
           <td colspan="2"></td>
-          <td style="padding:4px 5px;font-size:12px;text-align:right;color:#c00">${grandBefore.toLocaleString()}만원</td>
-          <td style="padding:4px 5px;font-size:12px;text-align:right;color:#1565c0">${grandAfter.toLocaleString()}만원</td>
+          <td style="padding:4px 5px;font-size:15px;text-align:right;color:#c00">${grandBefore.toLocaleString()}만원</td>
+          <td style="padding:4px 5px;font-size:15px;text-align:right;color:#1565c0">${grandAfter.toLocaleString()}만원</td>
         </tr></tfoot></table>
-        <div style="margin-top:8px;font-size:9px;color:#aaa">※ 금액단위:만원 / 최초1회한=1회 / 연간·치료당=×${years}년 / 일당=일수×${years}년</div>
+        <div style="margin-top:8px;font-size:12px;color:#aaa">※ 금액단위:만원 / 최초1회한=1회 / 연간·치료당=×${years}년 / 일당=일수×${years}년</div>
       </body></html>`);
       win.document.close();
     };
