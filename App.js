@@ -317,6 +317,7 @@ ORG_RAW.trim().split("\n").forEach(line => {
 
 // ─── 버전 변경이력 ───
 const CHANGELOG = [
+  { ver: "v1.33", date: "2026.05.18", desc: "영수증컨설팅 저장/불러오기 기능 추가 (소속별 Firebase 저장, 날짜·고객명 필터), 출력 전 고객명 유효성 확인" },
   { ver: "v1.32", date: "2026.05.18", desc: "암주요치료비IV 수술/약물/방사선 횟수 개별 입력, 하이클래스암주요치료비II 보너스 내역 표시, 인쇄 열 간격·줄바꿈 개선" },
   { ver: "v1.31", date: "2026.05.18", desc: "버전 변경이력 테이블 추가 (로그인 화면 하단)" },
   { ver: "v1.30", date: "2026.05.18", desc: "다빈도질환 재구성: 고혈압/이상지질혈증 신규, 3대신의료치료·통원 카테고리 추가" },
@@ -963,7 +964,17 @@ export default function App() {
   const [consultAmounts, setConsultAmounts] = useState({});
   const [consultYears, setConsultYears] = useState(1);
   const [consultClientName, setConsultClientName] = useState("");
+  const [consultClientNameError, setConsultClientNameError] = useState(false);
   const [consultCustomItems, setConsultCustomItems] = useState({ cancer: [], cerebrovascular: [], frequent: [] });
+  const [showSaveReceiptModal, setShowSaveReceiptModal] = useState(false);
+  const [showLoadReceiptModal, setShowLoadReceiptModal] = useState(false);
+  const [saveBranch, setSaveBranch] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem("sp_receipt_branch")||"{}"); return Date.now()-s.ts<86400000 ? s.branch||"" : ""; } catch { return ""; }
+  });
+  const [saveBranchSearch, setSaveBranchSearch] = useState("");
+  const [receiptRecords, setReceiptRecords] = useState([]);
+  const [receiptLoading, setReceiptLoading] = useState(false);
+  const [receiptSaveOk, setReceiptSaveOk] = useState(false);
   const pageHistoryRef = useRef([]);
   const wakeLockRef = useRef(null);
   const [pendingEvalText, setPendingEvalText] = useState("");
@@ -988,6 +999,60 @@ export default function App() {
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadHistory(); }, []);
+
+  const doSaveReceipt = async () => {
+    if (!saveBranch.trim()) return;
+    const record = {
+      id: Date.now(),
+      date: new Date().toISOString().slice(0,10).replace(/-/g,"."),
+      clientName: consultClientName.trim() || "미입력",
+      branch: saveBranch.trim(),
+      years: consultYears,
+      amounts: consultAmounts,
+      customItems: consultCustomItems,
+    };
+    try {
+      await initDB();
+      let existing = [];
+      try { existing = await getDB().loadReceipts() || []; } catch {}
+      existing.unshift(record);
+      await getDB().saveReceipts(existing);
+      try { localStorage.setItem("sp_receipt_branch", JSON.stringify({ branch: saveBranch.trim(), ts: Date.now() })); } catch {}
+    } catch (e) { console.error("Receipt save:", e); }
+    setShowSaveReceiptModal(false);
+    setReceiptSaveOk(true);
+    setTimeout(() => setReceiptSaveOk(false), 2500);
+  };
+
+  const loadReceiptRecords = async () => {
+    if (!selBranch) return;
+    setReceiptLoading(true);
+    try {
+      await initDB();
+      const all = await getDB().loadReceipts() || [];
+      const filtered = all.filter(r => r.branch === selBranch);
+      setReceiptRecords(filtered);
+    } catch { setReceiptRecords([]); }
+    setReceiptLoading(false);
+  };
+
+  const applyReceiptRecord = (r) => {
+    setConsultClientName(r.clientName === "미입력" ? "" : r.clientName);
+    setConsultYears(r.years || 1);
+    setConsultAmounts(r.amounts || {});
+    setConsultCustomItems(r.customItems || { cancer: [], cerebrovascular: [], frequent: [] });
+    setShowLoadReceiptModal(false);
+  };
+
+  const deleteReceiptRecord = async (id) => {
+    try {
+      await initDB();
+      let existing = await getDB().loadReceipts() || [];
+      existing = existing.filter(r => r.id !== id);
+      await getDB().saveReceipts(existing);
+      setReceiptRecords(prev => prev.filter(r => r.id !== id));
+    } catch (e) { console.error("Receipt delete:", e); }
+  };
 
   const getEmpList = (branch) => {
     if (!branch) return [];
@@ -1531,19 +1596,27 @@ export default function App() {
           </div>
 
           {/* 그룹 탭 */}
-          <div style={{ display: "flex", gap: 5, marginBottom: 10 }} className="no-print">
-            {Object.entries(CONSULT_ITEMS).map(([key]) => (
-              <button key={key} onClick={() => setConsultGroup(key)} style={{ flex: 1, padding: "7px 2px", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", background: consultGroup === key ? "#F97316" : "#f5f5f5", color: consultGroup === key ? "#fff" : "#666" }}>
-                {key === "cancer" ? "암" : key === "cerebrovascular" ? "심뇌혈관" : "다빈도"}
+          <div style={{ display: "flex", gap: 5, marginBottom: 10, alignItems: "center" }} className="no-print">
+            <div style={{ display: "flex", gap: 5, flex: 1 }}>
+              {Object.entries(CONSULT_ITEMS).map(([key]) => (
+                <button key={key} onClick={() => setConsultGroup(key)} style={{ flex: 1, padding: "7px 2px", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", background: consultGroup === key ? "#F97316" : "#f5f5f5", color: consultGroup === key ? "#fff" : "#666" }}>
+                  {key === "cancer" ? "암" : key === "cerebrovascular" ? "심뇌혈관" : "다빈도"}
+                </button>
+              ))}
+            </div>
+            {selBranch && (
+              <button onClick={() => { loadReceiptRecords(); setShowLoadReceiptModal(true); }}
+                style={{ padding: "7px 10px", border: "none", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", background: "#e3f2fd", color: "#1565c0", whiteSpace: "nowrap" }}>
+                📂 불러오기
               </button>
-            ))}
+            )}
           </div>
 
           {/* 고객정보 & 치료년수 */}
           <div style={{ background: "#fff", borderRadius: 10, padding: "10px 12px", marginBottom: 10, border: "1px solid #eee", display: "flex", gap: 8, alignItems: "flex-end" }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 10, color: "#888", marginBottom: 3 }}>고객명</div>
-              <input value={consultClientName} onChange={e => setConsultClientName(e.target.value)} style={{ ...iStyle, textAlign: "left" }} placeholder="고객명" />
+              <input value={consultClientName} onChange={e => { setConsultClientName(e.target.value); if (consultClientNameError) setConsultClientNameError(false); }} style={{ ...iStyle, textAlign: "left", borderColor: consultClientNameError ? "#EF4444" : undefined }} placeholder="고객명 (필수)" />
             </div>
             <div style={{ width: 80 }}>
               <div style={{ fontSize: 10, color: "#888", marginBottom: 3 }}>치료 년수</div>
@@ -1696,13 +1769,100 @@ export default function App() {
             })}
           </div>
 
-          {/* 출력 */}
-          <button onClick={printContent} className="no-print" style={{ width: "100%", padding: 13, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 8 }}>
-            🖨 출력 (인쇄 / 사진저장)
-          </button>
+          {/* 출력 / 저장 */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 4 }} className="no-print">
+            <button onClick={() => {
+              if (!consultClientName.trim()) { setConsultClientNameError(true); return; }
+              setConsultClientNameError(false);
+              printContent();
+            }} style={{ flex: 3, padding: 13, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+              🖨 출력 (인쇄 / 사진저장)
+            </button>
+            <button onClick={() => setShowSaveReceiptModal(true)} style={{ flex: 2, padding: 13, background: "linear-gradient(135deg,#1565c0,#0d47a1)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+              💾 저장
+            </button>
+          </div>
+          {consultClientNameError && <div style={{ color: "#EF4444", fontSize: 12, textAlign: "center", marginBottom: 4 }} className="no-print">고객명을 입력해 주세요</div>}
+          {receiptSaveOk && <div style={{ color: "#10B981", fontSize: 12, textAlign: "center", marginBottom: 4 }} className="no-print">✅ 저장 완료</div>}
           <div style={{ fontSize: 9, color: "#ccc", textAlign: "center", marginBottom: 24, paddingBottom: 20 }}>
             금액단위: 만원 &nbsp;|&nbsp; 최초1회한=1회 / 연간·치료당=×{years}년 / 일당=일수×{years}년
           </div>
+
+          {/* 저장 모달 */}
+          {showSaveReceiptModal && (
+            <div style={S.overlay} onClick={() => setShowSaveReceiptModal(false)}>
+              <div style={{ ...S.modal, maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "#222", marginBottom: 12, textAlign: "center" }}>💾 컨설팅 저장</div>
+                <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>고객명</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#222", background: "#f5f5f5", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>
+                  {consultClientName.trim() || <span style={{ color: "#bbb" }}>미입력</span>}
+                </div>
+                <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>소속 선택 <span style={{ color: "#EF4444" }}>*</span></div>
+                <div style={{ position: "relative", marginBottom: 4 }}>
+                  <input
+                    value={saveBranchSearch !== "" ? saveBranchSearch : saveBranch}
+                    onChange={e => { setSaveBranchSearch(e.target.value); setSaveBranch(""); }}
+                    onFocus={e => { setSaveBranchSearch(e.target.value || saveBranch); setSaveBranch(""); }}
+                    placeholder="소속 검색 (예: 광화문)"
+                    style={{ width: "100%", padding: "9px 12px", border: `1px solid ${!saveBranch && saveBranchSearch === "" ? "#ddd" : "#F97316"}`, borderRadius: 8, fontSize: 13, boxSizing: "border-box" }}
+                  />
+                  {saveBranchSearch !== "" && (
+                    <div style={{ position: "absolute", left: 0, right: 0, top: "100%", background: "#fff", border: "1px solid #eee", borderRadius: 8, boxShadow: "0 4px 16px #0001", zIndex: 200, maxHeight: 180, overflowY: "auto" }}>
+                      {ALL_BRANCHES.filter(b => b.includes(saveBranchSearch)).slice(0, 30).map(b => (
+                        <div key={b} onClick={() => { setSaveBranch(b); setSaveBranchSearch(""); }}
+                          style={{ padding: "9px 14px", fontSize: 13, cursor: "pointer", borderBottom: "1px solid #f5f5f5" }}
+                          onMouseEnter={e => e.currentTarget.style.background="#fff8f0"}
+                          onMouseLeave={e => e.currentTarget.style.background="#fff"}
+                        >{b}</div>
+                      ))}
+                      {ALL_BRANCHES.filter(b => b.includes(saveBranchSearch)).length === 0 && (
+                        <div style={{ padding: "9px 14px", fontSize: 12, color: "#bbb" }}>검색 결과 없음</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {saveBranch && <div style={{ fontSize: 11, color: "#F97316", marginBottom: 10 }}>✓ {saveBranch}</div>}
+                {!saveBranch && saveBranchSearch === "" && <div style={{ fontSize: 11, color: "#bbb", marginBottom: 10 }}>소속을 선택해 주세요</div>}
+                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                  <button onClick={() => { setShowSaveReceiptModal(false); setSaveBranchSearch(""); }} style={{ flex: 1, padding: 11, background: "#f5f5f5", border: "none", borderRadius: 10, fontSize: 13, cursor: "pointer", color: "#666" }}>취소</button>
+                  <button onClick={doSaveReceipt} disabled={!saveBranch} style={{ flex: 2, padding: 11, background: saveBranch ? "linear-gradient(135deg,#1565c0,#0d47a1)" : "#ccc", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: saveBranch ? "pointer" : "default", color: "#fff" }}>저장</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 불러오기 모달 */}
+          {showLoadReceiptModal && (
+            <div style={S.overlay} onClick={() => setShowLoadReceiptModal(false)}>
+              <div style={{ ...S.modal, maxWidth: 400, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "#222", marginBottom: 4, textAlign: "center" }}>📂 저장된 컨설팅</div>
+                <div style={{ fontSize: 11, color: "#888", textAlign: "center", marginBottom: 12 }}>{selBranch}</div>
+                {receiptLoading ? (
+                  <div style={{ textAlign: "center", padding: 24, color: "#bbb", fontSize: 13 }}>불러오는 중...</div>
+                ) : receiptRecords.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: 24, color: "#bbb", fontSize: 13 }}>저장된 내용이 없습니다</div>
+                ) : (
+                  <div>
+                    {receiptRecords.map((r, i) => (
+                      <div key={r.id} style={{ background: i%2===0?"#fff":"#fafafa", borderRadius: 8, padding: "10px 12px", marginBottom: 6, border: "1px solid #f0f0f0" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <div style={{ cursor: "pointer", flex: 1 }} onClick={() => applyReceiptRecord(r)}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: "#222" }}>{r.clientName}</div>
+                            <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
+                              {r.date} &nbsp;|&nbsp; {r.years}년 &nbsp;|&nbsp; {r.branch}
+                            </div>
+                          </div>
+                          <button onClick={() => { if (window.confirm("삭제할까요?")) deleteReceiptRecord(r.id); }}
+                            style={{ padding: "3px 8px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, color: "#EF4444", fontSize: 11, cursor: "pointer", flexShrink: 0, marginLeft: 8 }}>삭제</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button onClick={() => setShowLoadReceiptModal(false)} style={{ width: "100%", padding: 11, background: "#f5f5f5", border: "none", borderRadius: 10, fontSize: 13, cursor: "pointer", color: "#666", marginTop: 8 }}>닫기</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
