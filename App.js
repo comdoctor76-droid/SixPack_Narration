@@ -317,15 +317,17 @@ ORG_RAW.trim().split("\n").forEach(line => {
 
 // ─── 버전 변경이력 ───
 const CHANGELOG = [
-  { ver: "v2.7", date: "2026.05.18", desc: "다빈도질환 재구성 (사진 최신버전 기준): 고혈압/이상지질혈증 신규, 3대신의료치료 카테고리 추가, 통원 카테고리 추가" },
-  { ver: "v2.6", date: "2026.05.18", desc: "암/심뇌혈관 재구성 (사진 최신버전 기준): 입·통원·재발·재활·재활 카테고리 추가, 암주요치료비III·IV·유사암주요치료비, 하이클래스II·특정치료비 등 신규" },
-  { ver: "v2.5", date: "2026.05.18", desc: "암 치료 항목 추가: 비급여표적항암, 양성자치료, 중입자치료, 주요방사성의약품치료, 암주요치료비III 스마트합산, 하이클래스암주요치료비II 보너스 자동계산" },
-  { ver: "v2.4", date: "2026.05.18", desc: "인쇄 팝업 사진저장(Web Share) 버튼 추가, 출력 폰트 3px 확대" },
-  { ver: "v2.3", date: "2026.05.18", desc: "치료당 항목에 횟수 입력 컬럼 추가 (금액×횟수 합계 계산)" },
-  { ver: "v2.2", date: "2026.05.18", desc: "영수증컨설팅 암·심뇌혈관·다빈도 항목 전면 구성, 만원 단위·일수 입력·모바일 최적화" },
-  { ver: "v2.1", date: "2026.05.18", desc: "영수증컨설팅 실습하기 기능 추가 (소속 없이도 사용 가능)" },
-  { ver: "v2.0", date: "2025.01.01", desc: "모바일 STT 키워드 매칭 개선, 관리자 체크포인트 동기화" },
-  { ver: "v1.0", date: "2024.01.01", desc: "초기 출시 — 6개 화법 트레이너 (생애주기·보장분석·확률·LC·영수증·리모델링)" },
+  { ver: "v1.32", date: "2026.05.18", desc: "암주요치료비IV 수술/약물/방사선 횟수 개별 입력, 하이클래스암주요치료비II 보너스 내역 표시, 인쇄 열 간격·줄바꿈 개선" },
+  { ver: "v1.31", date: "2026.05.18", desc: "버전 변경이력 테이블 추가 (로그인 화면 하단)" },
+  { ver: "v1.30", date: "2026.05.18", desc: "다빈도질환 재구성: 고혈압/이상지질혈증 신규, 3대신의료치료·통원 카테고리 추가" },
+  { ver: "v1.29", date: "2026.05.18", desc: "암/심뇌혈관 재구성: 입·통원·재발·재활 카테고리 추가, 암주요치료비III·IV·유사암주요치료비 등 신규" },
+  { ver: "v1.28", date: "2026.05.18", desc: "암 치료 항목 추가: 비급여표적항암, 양성자/중입자/주요방사성의약품치료, 암주요치료비III 스마트합산, 하이클래스암주요치료비II 보너스 자동계산" },
+  { ver: "v1.27", date: "2026.05.18", desc: "인쇄 팝업 사진저장(Web Share) 버튼 추가, 출력 폰트 3px 확대" },
+  { ver: "v1.26", date: "2026.05.18", desc: "치료당 항목에 횟수 입력 컬럼 추가 (금액×횟수 합계 계산)" },
+  { ver: "v1.25", date: "2026.05.18", desc: "영수증컨설팅 암·심뇌혈관·다빈도 항목 전면 구성, 만원 단위·일수 입력·모바일 최적화" },
+  { ver: "v1.24", date: "2026.05.18", desc: "영수증컨설팅 실습하기 기능 추가 (소속 없이도 사용 가능)" },
+  { ver: "v1.23", date: "2025.01.01", desc: "모바일 STT 키워드 매칭 개선, 관리자 체크포인트 동기화" },
+  { ver: "v1.22", date: "2024.01.01", desc: "초기 출시 — 6개 화법 트레이너 (생애주기·보장분석·확률·LC·영수증·리모델링)" },
 ];
 
 // ─── 영수증 컨설팅 데이터 ───
@@ -1368,6 +1370,13 @@ export default function App() {
         if (item.freqType === "once") return n;
         if (item.freqType === "annual") return n * years;
         if (item.freqType === "per_treatment") {
+          if (item.id === "ca_t13b") {
+            const surg = Number(getAmt(item.id, "count_surg") || 0);
+            const drug = Number(getAmt(item.id, "count_drug") || 0);
+            const radio = Number(getAmt(item.id, "count_radio") || 0);
+            const tot = surg + drug + radio;
+            return tot > 0 ? n * tot : n * years;
+          }
           const cntStr = getAmt(item.id, "count");
           const cnt = cntStr !== "" ? Number(cntStr) : null;
           return cnt !== null ? n * cnt : n * years;
@@ -1419,10 +1428,10 @@ export default function App() {
         return `<tr>
           <td style="padding:3px 6px 3px 14px;font-size:14px;border-bottom:1px solid #f0f0f0">${item.label||""}</td>
           <td style="padding:3px 5px;font-size:13px;border-bottom:1px solid #f0f0f0;text-align:center;color:#777">${freqLabel}${dateLabel}</td>
-          <td style="padding:3px 5px;font-size:14px;border-bottom:1px solid #f0f0f0;text-align:right">${bv ? Number(bv).toLocaleString()+"만" : ""}</td>
-          <td style="padding:3px 5px;font-size:14px;border-bottom:1px solid #f0f0f0;text-align:right">${av ? Number(av).toLocaleString()+"만" : ""}</td>
-          <td style="padding:3px 5px;font-size:14px;border-bottom:1px solid #f0f0f0;text-align:right;color:#c00">${t.before > 0 ? t.before.toLocaleString()+"만" : ""}</td>
-          <td style="padding:3px 5px;font-size:14px;border-bottom:1px solid #f0f0f0;text-align:right;color:#1565c0">${t.after > 0 ? t.after.toLocaleString()+"만" : ""}</td>
+          <td style="padding:3px 5px;font-size:14px;border-bottom:1px solid #f0f0f0;text-align:right;white-space:nowrap">${bv ? Number(bv).toLocaleString()+"만" : ""}</td>
+          <td style="padding:3px 5px;font-size:14px;border-bottom:1px solid #f0f0f0;text-align:right;white-space:nowrap">${av ? Number(av).toLocaleString()+"만" : ""}</td>
+          <td style="padding:3px 5px;font-size:14px;border-bottom:1px solid #f0f0f0;text-align:right;color:#c00;white-space:nowrap">${t.before > 0 ? t.before.toLocaleString()+"만" : ""}</td>
+          <td style="padding:3px 5px;font-size:14px;border-bottom:1px solid #f0f0f0;text-align:right;color:#1565c0;white-space:nowrap">${t.after > 0 ? t.after.toLocaleString()+"만" : ""}</td>
         </tr>`;
       };
       const catSection = groupData ? groupData.categories.map(cat => {
@@ -1485,7 +1494,7 @@ export default function App() {
           <button onclick="window.print()" style="padding:6px 18px;background:#F97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:15px">🖨 인쇄</button>
           <button onclick="saveImage()" style="padding:6px 18px;background:#1565c0;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:15px">📷 사진저장</button>
         </div>
-        <table><thead><tr style="background:#F97316;color:#fff">
+        <table><colgroup><col style="width:30%"><col style="width:18%"><col style="width:13%"><col style="width:13%"><col style="width:13%"><col style="width:13%"></colgroup><thead><tr style="background:#F97316;color:#fff">
           <th style="padding:4px 6px;font-size:13px;text-align:left">보장내역</th>
           <th style="padding:4px 5px;font-size:13px;text-align:center">보장횟수 / 출시일</th>
           <th style="padding:4px 5px;font-size:13px;text-align:right">전(만원)</th>
@@ -1580,6 +1589,17 @@ export default function App() {
                             {t.after > 0 && <span style={{ color: "#1565c0" }}>{t.after.toLocaleString()}만</span>}
                           </div>
                         )}
+                        {active && item.freqType === "hi_major" && (() => {
+                          const field = getAmt(item.id,"after") ? "after" : "before";
+                          const base = Number(getAmt(item.id, field) || 0);
+                          const hasRobot = Number(getAmt("ca_t3", field)) > 0;
+                          const hasNonCov = Number(getAmt("ca_t8b", field)) > 0;
+                          const hasProton = ["ca_t12b","ca_t12c"].some(id2 => Number(getAmt(id2, field)) > 0);
+                          const bonus = (hasRobot?1000:0)+(hasNonCov?1000:0)+(hasProton?1000:0);
+                          if (!bonus || !base) return null;
+                          const parts = [hasRobot&&"로봇+1,000", hasNonCov&&"비급여+1,000", hasProton&&"양성자+1,000"].filter(Boolean);
+                          return <div style={{fontSize:8,color:"#999",marginTop:1}}>기본{base.toLocaleString()} {parts.join(" ")}</div>;
+                        })()}
                       </div>
                       <div style={{ width: (hasPT || hasDaily) ? "17%" : "19%", padding: "0 3px" }}>
                         <input type="number" min="0" value={getAmt(item.id,"before")} onChange={e => setAmt(item.id,"before",e.target.value)}
@@ -1587,7 +1607,15 @@ export default function App() {
                       </div>
                       {hasPT && (
                         <div style={{ width: "14%", padding: "0 3px" }}>
-                          {(item.freqType === "per_treatment" || item.freqType === "hi_major") && <input type="number" min="0" value={getAmt(item.id,"count")} onChange={e => setAmt(item.id,"count",e.target.value)} style={{ ...dStyle, textAlign: "center" }} placeholder="횟수" />}
+                          {item.id === "ca_t13b" ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                              <input type="number" min="0" value={getAmt(item.id,"count_surg")} onChange={e => setAmt(item.id,"count_surg",e.target.value)} style={{ ...dStyle, textAlign: "center" }} placeholder="수술" />
+                              <input type="number" min="0" value={getAmt(item.id,"count_drug")} onChange={e => setAmt(item.id,"count_drug",e.target.value)} style={{ ...dStyle, textAlign: "center" }} placeholder="약물" />
+                              <input type="number" min="0" value={getAmt(item.id,"count_radio")} onChange={e => setAmt(item.id,"count_radio",e.target.value)} style={{ ...dStyle, textAlign: "center" }} placeholder="방사선" />
+                            </div>
+                          ) : (item.freqType === "per_treatment" || item.freqType === "hi_major") &&
+                            <input type="number" min="0" value={getAmt(item.id,"count")} onChange={e => setAmt(item.id,"count",e.target.value)} style={{ ...dStyle, textAlign: "center" }} placeholder="횟수" />
+                          }
                         </div>
                       )}
                       <div style={{ width: (hasPT || hasDaily) ? "17%" : "19%", padding: "0 3px" }}>
