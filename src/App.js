@@ -315,6 +315,19 @@ ORG_RAW.trim().split("\n").forEach(line => {
   ALL_BRANCHES.push(c);
 });
 
+// ─── 버전 변경이력 ───
+const CHANGELOG = [
+  { ver: "v2.7", date: "2026.05.18", desc: "다빈도질환 재구성 (사진 최신버전 기준): 고혈압/이상지질혈증 신규, 3대신의료치료 카테고리 추가, 통원 카테고리 추가" },
+  { ver: "v2.6", date: "2026.05.18", desc: "암/심뇌혈관 재구성 (사진 최신버전 기준): 입·통원·재발·재활·재활 카테고리 추가, 암주요치료비III·IV·유사암주요치료비, 하이클래스II·특정치료비 등 신규" },
+  { ver: "v2.5", date: "2026.05.18", desc: "암 치료 항목 추가: 비급여표적항암, 양성자치료, 중입자치료, 주요방사성의약품치료, 암주요치료비III 스마트합산, 하이클래스암주요치료비II 보너스 자동계산" },
+  { ver: "v2.4", date: "2026.05.18", desc: "인쇄 팝업 사진저장(Web Share) 버튼 추가, 출력 폰트 3px 확대" },
+  { ver: "v2.3", date: "2026.05.18", desc: "치료당 항목에 횟수 입력 컬럼 추가 (금액×횟수 합계 계산)" },
+  { ver: "v2.2", date: "2026.05.18", desc: "영수증컨설팅 암·심뇌혈관·다빈도 항목 전면 구성, 만원 단위·일수 입력·모바일 최적화" },
+  { ver: "v2.1", date: "2026.05.18", desc: "영수증컨설팅 실습하기 기능 추가 (소속 없이도 사용 가능)" },
+  { ver: "v2.0", date: "2025.01.01", desc: "모바일 STT 키워드 매칭 개선, 관리자 체크포인트 동기화" },
+  { ver: "v1.0", date: "2024.01.01", desc: "초기 출시 — 6개 화법 트레이너 (생애주기·보장분석·확률·LC·영수증·리모델링)" },
+];
+
 // ─── 영수증 컨설팅 데이터 ───
 // freqType: "once"=최초1회한, "annual"=연간1회한/365일내1회한, "per_treatment"=치료당/수술당, "daily"=일당(한도일수)
 const CONSULT_ITEMS = {
@@ -943,6 +956,7 @@ export default function App() {
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showContinueModal, setShowContinueModal] = useState(false);
   const [showNoRecords, setShowNoRecords] = useState(false);
+  const [showChangelog, setShowChangelog] = useState(false);
   const [consultGroup, setConsultGroup] = useState("cancer");
   const [consultAmounts, setConsultAmounts] = useState({});
   const [consultYears, setConsultYears] = useState(1);
@@ -1232,6 +1246,41 @@ export default function App() {
           <button onClick={() => { loadHistory(); navigate("stats"); }} style={{ flex: 1, padding: 12, background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, color: "#666", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>📊 통계</button>
           <button onClick={() => { if (adminMode) { loadHistory(); navigate("admin"); setAdminSelected(new Set()); } else { setShowAdminLogin(true); setAdminPw(""); } }} style={{ padding: "12px 16px", background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, color: "#999", fontSize: 12, cursor: "pointer" }}>🔒</button>
         </div>
+
+        {/* 버전 배지 */}
+        <div style={{ textAlign: "center", marginTop: 14 }}>
+          <button onClick={() => setShowChangelog(true)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+            <span style={{ fontSize: 11, color: "#bbb", background: "#f5f5f5", borderRadius: 10, padding: "3px 10px", letterSpacing: 0.5 }}>{CHANGELOG[0].ver} · {CHANGELOG[0].date}</span>
+          </button>
+        </div>
+
+        {/* 버전 변경이력 모달 */}
+        {showChangelog && (
+          <div style={S.overlay} onClick={() => setShowChangelog(false)}>
+            <div style={{ ...S.modal, maxWidth: 420, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#222", marginBottom: 12, textAlign: "center" }}>버전 변경이력</div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                <thead>
+                  <tr style={{ background: "#F97316", color: "#fff" }}>
+                    <th style={{ padding: "5px 8px", textAlign: "center", whiteSpace: "nowrap" }}>버전</th>
+                    <th style={{ padding: "5px 8px", textAlign: "center", whiteSpace: "nowrap" }}>날짜</th>
+                    <th style={{ padding: "5px 8px", textAlign: "left" }}>변경 내용</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {CHANGELOG.map((c, i) => (
+                    <tr key={i} style={{ background: i % 2 === 0 ? "#fff" : "#fafafa", borderBottom: "1px solid #f0f0f0" }}>
+                      <td style={{ padding: "5px 8px", textAlign: "center", fontWeight: 700, color: i === 0 ? "#F97316" : "#555", whiteSpace: "nowrap" }}>{c.ver}</td>
+                      <td style={{ padding: "5px 8px", textAlign: "center", color: "#888", whiteSpace: "nowrap" }}>{c.date}</td>
+                      <td style={{ padding: "5px 8px", color: "#444", lineHeight: 1.5 }}>{c.desc}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button onClick={() => setShowChangelog(false)} style={{ marginTop: 14, width: "100%", padding: "10px", background: "#F97316", border: "none", borderRadius: 10, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>닫기</button>
+            </div>
+          </div>
+        )}
 
         {/* 기록 없음 팝업 */}
         {showNoRecords && (
