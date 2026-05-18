@@ -343,12 +343,16 @@ const CONSULT_ITEMS = {
         { id:"ca_t6", label:"항암약물치료 (치료당)", freq:"치료당", freqType:"per_treatment", date:"2022.08" },
         { id:"ca_t7", label:"표적항암약물허가치료 (최초)", freq:"최초1회한", freqType:"once", date:"2020.08" },
         { id:"ca_t8", label:"표적항암약물허가치료 (치료당)", freq:"치료당", freqType:"per_treatment", date:"2022.08" },
+        { id:"ca_t8b", label:"(비급여)표적항암약물허가치료", freq:"비급여(전액본인부담급여 포함)최초1회한", freqType:"once" },
         { id:"ca_t9", label:"항암방사선치료 (최초)", freq:"최초1회한", freqType:"once" },
         { id:"ca_t10", label:"항암방사선치료 (치료당)", freq:"치료당", freqType:"per_treatment", date:"2022.08" },
         { id:"ca_t11", label:"항암방사선(세기조절)치료 (최초)", freq:"최초1회한", freqType:"once", date:"2021.07" },
         { id:"ca_t12", label:"항암방사선(세기조절)치료 (치료당)", freq:"치료당", freqType:"per_treatment", date:"2022.08" },
-        { id:"ca_t13", label:"암주요치료비", freq:"연간1회한", freqType:"annual", date:"2024.01" },
-        { id:"ca_t14", label:"하이클래스암주요치료비", freq:"연간1회한", freqType:"annual", date:"2025.04" },
+        { id:"ca_t12b", label:"항암방사선(양성자)치료", freq:"최초1회한", freqType:"once" },
+        { id:"ca_t12c", label:"항암방사선(양성자)치료 (치료당)", freq:"치료당", freqType:"per_treatment" },
+        { id:"ca_t13", label:"암주요치료비2", freq:"연간1회한(최대10년)", freqType:"annual", date:"2024.01" },
+        { id:"ca_t13b", label:"암주요치료비3", freq:"연간1회한 (수술/약물/방사선 각각)", freqType:"annual_multi" },
+        { id:"ca_t14", label:"하이클래스암주요치료비2", freq:"치료회당(연간 한도내 보장)", freqType:"hi_major", date:"2025.04" },
         { id:"ca_t15", label:"하이클래스항암약물치료", freq:"연간1회한", freqType:"annual", date:"2025.04" },
       ]},
       { cat: "전이", items: [
@@ -1271,7 +1275,7 @@ export default function App() {
 
     // Returns totals in 만원; per_treatment uses count field (× years if no count); daily uses 일수 × years
     const calcTotal = (item) => {
-      const calcOne = (amtStr) => {
+      const calcOne = (amtStr, field) => {
         const n = Number(String(amtStr || "").replace(/,/g,""));
         if (!amtStr || isNaN(n) || n === 0) return 0;
         if (item.freqType === "once") return n;
@@ -1285,9 +1289,31 @@ export default function App() {
           const days = Number(getAmt(item.id, "days") || 0);
           return n * days * years;
         }
+        if (item.freqType === "annual_multi") {
+          // 암주요치료비3: pays annually per triggered category (약물/방사선/수술)
+          const drugIds = ["ca_t6","ca_t8","ca_t8b","ca_e4","ca_e6","ca_e14"];
+          const radioIds = ["ca_t10","ca_t12","ca_t12b","ca_t12c","ca_e8","ca_e10","ca_e12"];
+          const surgIds = ["ca_t1","ca_t2","ca_e2"];
+          const hasDrug = drugIds.some(id => Number(getAmt(id, field)) > 0);
+          const hasRadio = radioIds.some(id => Number(getAmt(id, field)) > 0);
+          const hasSurg = surgIds.some(id => Number(getAmt(id, field)) > 0);
+          const mult = (hasDrug ? 1 : 0) + (hasRadio ? 1 : 0) + (hasSurg ? 1 : 0);
+          return n * Math.max(mult, 1) * years;
+        }
+        if (item.freqType === "hi_major") {
+          // 하이클래스암주요치료비2: 치료회당 + 1000만 bonus per triggered special item
+          const cntStr = getAmt(item.id, "count");
+          const cnt = cntStr !== "" ? Number(cntStr) : null;
+          const hasRobot = Number(getAmt("ca_t3", field)) > 0;
+          const hasNonCov = Number(getAmt("ca_t8b", field)) > 0;
+          const hasProton = ["ca_t12b","ca_t12c"].some(id => Number(getAmt(id, field)) > 0);
+          const bonus = (hasRobot ? 1000 : 0) + (hasNonCov ? 1000 : 0) + (hasProton ? 1000 : 0);
+          const effectiveAmt = n + bonus;
+          return cnt !== null ? effectiveAmt * cnt : effectiveAmt * years;
+        }
         return n;
       };
-      return { before: calcOne(getAmt(item.id,"before")), after: calcOne(getAmt(item.id,"after")) };
+      return { before: calcOne(getAmt(item.id,"before"), "before"), after: calcOne(getAmt(item.id,"after"), "after") };
     };
 
     const hasData = (item) => getAmt(item.id,"before") || getAmt(item.id,"after");
@@ -1434,7 +1460,7 @@ export default function App() {
             const catBefore = cat.items.reduce((s,item) => s + calcTotal(item).before, 0);
             const catAfter = cat.items.reduce((s,item) => s + calcTotal(item).after, 0);
             const hasDaily = cat.items.some(i => i.freqType === "daily");
-            const hasPT = cat.items.some(i => i.freqType === "per_treatment");
+            const hasPT = cat.items.some(i => i.freqType === "per_treatment" || i.freqType === "hi_major");
             return (
               <div key={cat.cat} style={{ background: "#fff", borderRadius: 10, border: "1px solid #eee", marginBottom: 8, overflow: "hidden" }}>
                 <div style={{ background: "#FFF3E0", padding: "6px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1474,7 +1500,7 @@ export default function App() {
                       </div>
                       {hasPT && (
                         <div style={{ width: "14%", padding: "0 3px" }}>
-                          {item.freqType === "per_treatment" && <input type="number" min="0" value={getAmt(item.id,"count")} onChange={e => setAmt(item.id,"count",e.target.value)} style={{ ...dStyle, textAlign: "center" }} placeholder="횟수" />}
+                          {(item.freqType === "per_treatment" || item.freqType === "hi_major") && <input type="number" min="0" value={getAmt(item.id,"count")} onChange={e => setAmt(item.id,"count",e.target.value)} style={{ ...dStyle, textAlign: "center" }} placeholder="횟수" />}
                         </div>
                       )}
                       <div style={{ width: (hasPT || hasDaily) ? "17%" : "19%", padding: "0 3px" }}>
