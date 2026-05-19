@@ -317,6 +317,7 @@ ORG_RAW.trim().split("\n").forEach(line => {
 
 // ─── 버전 변경이력 ───
 const CHANGELOG = [
+  { ver: "v1.35", date: "2026.05.19", desc: "출력/저장 모달에 지역단·비전센터·지점·성명 선택 추가, 담당자 기기 1일 기억, 불러오기 담당자 이름 검색으로 변경" },
   { ver: "v1.34", date: "2026.05.19", desc: "주요치료비 합산로직 개선: 암주요치료비III·하이클래스암주요치료비 수술/약물/방사선 각각 연간 합산, 암주요치료비IV 단일횟수·수술1회 고정, 하이클래스암주요치료비II 카테고리별 1,000만, 하이클래스암특정치료비 항목별 지급, 주요치료비 합산 내역 표시, 저장 버튼 제거" },
   { ver: "v1.33", date: "2026.05.18", desc: "영수증컨설팅 저장/불러오기 기능 추가 (소속별 Firebase 저장, 날짜·고객명 필터), 출력 전 고객명 유효성 확인" },
   { ver: "v1.32", date: "2026.05.18", desc: "암주요치료비IV 수술/약물/방사선 횟수 개별 입력, 하이클래스암주요치료비II 보너스 내역 표시, 인쇄 열 간격·줄바꿈 개선" },
@@ -967,12 +968,17 @@ export default function App() {
   const [consultClientName, setConsultClientName] = useState("");
   const [consultClientNameError, setConsultClientNameError] = useState(false);
   const [consultCustomItems, setConsultCustomItems] = useState({ cancer: [], cerebrovascular: [], frequent: [] });
-  const [showSaveReceiptModal, setShowSaveReceiptModal] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [pRegion, setPRegion] = useState(() => { try { const s = JSON.parse(localStorage.getItem("sp_print_staff")||"{}"); return Date.now()-s.ts<86400000 ? s.region||"" : ""; } catch { return ""; } });
+  const [pCenter, setPCenter] = useState(() => { try { const s = JSON.parse(localStorage.getItem("sp_print_staff")||"{}"); return Date.now()-s.ts<86400000 ? s.center||"" : ""; } catch { return ""; } });
+  const [pBranch, setPBranch] = useState(() => { try { const s = JSON.parse(localStorage.getItem("sp_print_staff")||"{}"); return Date.now()-s.ts<86400000 ? s.branch||"" : ""; } catch { return ""; } });
+  const [pName, setPName] = useState(() => { try { const s = JSON.parse(localStorage.getItem("sp_print_staff")||"{}"); return Date.now()-s.ts<86400000 ? s.name||"" : ""; } catch { return ""; } });
+  const [pManualName, setPManualName] = useState(() => { try { const s = JSON.parse(localStorage.getItem("sp_print_staff")||"{}"); return Date.now()-s.ts<86400000 ? s.manualName||"" : ""; } catch { return ""; } });
+  const [pClientName, setPClientName] = useState("");
+  const [pNamePickerOpen, setPNamePickerOpen] = useState(false);
+  const [pEmpSearch, setPEmpSearch] = useState("");
+  const [loadStaffSearch, setLoadStaffSearch] = useState("");
   const [showLoadReceiptModal, setShowLoadReceiptModal] = useState(false);
-  const [saveBranch, setSaveBranch] = useState(() => {
-    try { const s = JSON.parse(localStorage.getItem("sp_receipt_branch")||"{}"); return Date.now()-s.ts<86400000 ? s.branch||"" : ""; } catch { return ""; }
-  });
-  const [saveBranchSearch, setSaveBranchSearch] = useState("");
   const [receiptRecords, setReceiptRecords] = useState([]);
   const [receiptLoading, setReceiptLoading] = useState(false);
   const pageHistoryRef = useRef([]);
@@ -1001,12 +1007,16 @@ export default function App() {
   useEffect(() => { loadHistory(); }, []);
 
   const doSaveReceipt = async () => {
-    if (!saveBranch.trim()) return;
+    const staffName = pName === "__MANUAL__" ? pManualName.trim() : pName;
+    if (!pBranch || !staffName) return;
     const record = {
       id: Date.now(),
-      date: new Date().toISOString().slice(0,10).replace(/-/g,"."),
-      clientName: consultClientName.trim() || "미입력",
-      branch: saveBranch.trim(),
+      date: new Date().toLocaleString("ko-KR"),
+      clientName: pClientName.trim() || "미입력",
+      branch: pBranch,
+      staffName,
+      region: pRegion,
+      center: pCenter,
       years: consultYears,
       amounts: consultAmounts,
       customItems: consultCustomItems,
@@ -1017,18 +1027,19 @@ export default function App() {
       try { existing = await getDB().loadReceipts() || []; } catch {}
       existing.unshift(record);
       await getDB().saveReceipts(existing);
-      try { localStorage.setItem("sp_receipt_branch", JSON.stringify({ branch: saveBranch.trim(), ts: Date.now() })); } catch {}
+      try { localStorage.setItem("sp_print_staff", JSON.stringify({ region: pRegion, center: pCenter, branch: pBranch, name: pName, manualName: pManualName, ts: Date.now() })); } catch {}
     } catch (e) { console.error("Receipt save:", e); }
-    setShowSaveReceiptModal(false);
+    setShowPrintModal(false);
+    alert("저장 완료!");
   };
 
-  const loadReceiptRecords = async () => {
-    if (!selBranch) return;
+  const loadReceiptRecords = async (staffName) => {
+    if (!staffName) return;
     setReceiptLoading(true);
     try {
       await initDB();
       const all = await getDB().loadReceipts() || [];
-      const filtered = all.filter(r => r.branch === selBranch);
+      const filtered = all.filter(r => r.staffName === staffName);
       setReceiptRecords(filtered);
     } catch { setReceiptRecords([]); }
     setReceiptLoading(false);
@@ -1495,7 +1506,7 @@ export default function App() {
     const grandAfter = allItems.reduce((s, item) => s + calcTotal(item).after, 0);
 
     // Print popup
-    const printContent = () => {
+    const printContent = (ovStaff, ovBranch, ovClient) => {
       const renderPrintRow = (item) => {
         const t = calcTotal(item);
         const days = getAmt(item.id,"days");
@@ -1527,7 +1538,7 @@ export default function App() {
         <td style="text-align:right;padding:4px 5px;font-size:14px;color:#c00">${customPrint.reduce((s,i)=>s+calcTotal(i).before,0).toLocaleString()}만</td>
         <td style="text-align:right;padding:4px 5px;font-size:14px;color:#1565c0">${customPrint.reduce((s,i)=>s+calcTotal(i).after,0).toLocaleString()}만</td>
         <td colspan="2"></td></tr>${customPrint.map(renderPrintRow).join("")}` : "";
-      const staffName = nameInput==="__MANUAL__"?manualNameInput:nameInput;
+      const staffName = (ovStaff) || (nameInput==="__MANUAL__"?manualNameInput:nameInput);
       const titleText = groupData?groupData.label:"";
       const sc = "\x3C/script>";
       const win = window.open("","_blank","width=780,height=900");
@@ -1565,8 +1576,8 @@ export default function App() {
         <div style="text-align:center;margin-bottom:10px">
           <div style="font-size:15px;color:#F97316;font-weight:700">현대해상</div>
           <div style="font-size:20px;font-weight:900">${titleText}</div>
-          <div style="font-size:14px;color:#555">고객명: <b>${consultClientName}</b> &nbsp;|&nbsp; 치료년수: <b>${years}년</b></div>
-          <div style="font-size:13px;color:#888">담당: ${selBranch} ${staffName}</div>
+          <div style="font-size:14px;color:#555">고객명: <b>${ovClient||consultClientName}</b> &nbsp;|&nbsp; 치료년수: <b>${years}년</b></div>
+          <div style="font-size:13px;color:#888">담당: ${ovBranch||selBranch} ${staffName}</div>
         </div>
         <div id="btns" style="margin-bottom:8px;display:flex;gap:6px">
           <button onclick="window.print()" style="padding:6px 18px;background:#F97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:15px">🖨 인쇄</button>
@@ -1617,12 +1628,10 @@ export default function App() {
                 </button>
               ))}
             </div>
-            {selBranch && (
-              <button onClick={() => { loadReceiptRecords(); setShowLoadReceiptModal(true); }}
-                style={{ padding: "7px 10px", border: "none", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", background: "#e3f2fd", color: "#1565c0", whiteSpace: "nowrap" }}>
-                📂 불러오기
-              </button>
-            )}
+            <button onClick={() => { setLoadStaffSearch(pName === "__MANUAL__" ? pManualName : pName); setReceiptRecords([]); setShowLoadReceiptModal(true); }}
+              style={{ padding: "7px 10px", border: "none", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", background: "#e3f2fd", color: "#1565c0", whiteSpace: "nowrap" }}>
+              📂 불러오기
+            </button>
           </div>
 
           {/* 고객정보 & 치료년수 */}
@@ -1827,71 +1836,98 @@ export default function App() {
             );
           })()}
 
-          {/* 출력 */}
-          <button onClick={() => {
-            if (!consultClientName.trim()) { setConsultClientNameError(true); return; }
-            setConsultClientNameError(false);
-            printContent();
-          }} className="no-print" style={{ width: "100%", padding: 13, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 4 }}>
-            🖨 출력 (인쇄 / 사진저장)
+          {/* 출력 버튼 → 담당자 정보 입력 모달 */}
+          <button onClick={() => { setPClientName(consultClientName); setShowPrintModal(true); }}
+            className="no-print" style={{ width: "100%", padding: 13, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 4 }}>
+            🖨 출력 / 저장
           </button>
-          {consultClientNameError && <div style={{ color: "#EF4444", fontSize: 12, textAlign: "center", marginBottom: 4 }} className="no-print">고객명을 입력해 주세요</div>}
           <div style={{ fontSize: 9, color: "#ccc", textAlign: "center", marginBottom: 24, paddingBottom: 20 }}>
             금액단위: 만원 &nbsp;|&nbsp; 최초1회한=1회 / 연간·치료당=×{years}년 / 일당=일수×{years}년
           </div>
 
-          {/* 저장 모달 */}
-          {showSaveReceiptModal && (
-            <div style={S.overlay} onClick={() => setShowSaveReceiptModal(false)}>
-              <div style={{ ...S.modal, maxWidth: 360 }} onClick={e => e.stopPropagation()}>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "#222", marginBottom: 12, textAlign: "center" }}>💾 컨설팅 저장</div>
-                <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>고객명</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#222", background: "#f5f5f5", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>
-                  {consultClientName.trim() || <span style={{ color: "#bbb" }}>미입력</span>}
-                </div>
-                <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>소속 선택 <span style={{ color: "#EF4444" }}>*</span></div>
-                <div style={{ position: "relative", marginBottom: 4 }}>
-                  <input
-                    value={saveBranchSearch !== "" ? saveBranchSearch : saveBranch}
-                    onChange={e => { setSaveBranchSearch(e.target.value); setSaveBranch(""); }}
-                    onFocus={e => { setSaveBranchSearch(e.target.value || saveBranch); setSaveBranch(""); }}
-                    placeholder="소속 검색 (예: 광화문)"
-                    style={{ width: "100%", padding: "9px 12px", border: `1px solid ${!saveBranch && saveBranchSearch === "" ? "#ddd" : "#F97316"}`, borderRadius: 8, fontSize: 13, boxSizing: "border-box" }}
-                  />
-                  {saveBranchSearch !== "" && (
-                    <div style={{ position: "absolute", left: 0, right: 0, top: "100%", background: "#fff", border: "1px solid #eee", borderRadius: 8, boxShadow: "0 4px 16px #0001", zIndex: 200, maxHeight: 180, overflowY: "auto" }}>
-                      {ALL_BRANCHES.filter(b => b.includes(saveBranchSearch)).slice(0, 30).map(b => (
-                        <div key={b} onClick={() => { setSaveBranch(b); setSaveBranchSearch(""); }}
-                          style={{ padding: "9px 14px", fontSize: 13, cursor: "pointer", borderBottom: "1px solid #f5f5f5" }}
-                          onMouseEnter={e => e.currentTarget.style.background="#fff8f0"}
-                          onMouseLeave={e => e.currentTarget.style.background="#fff"}
-                        >{b}</div>
-                      ))}
-                      {ALL_BRANCHES.filter(b => b.includes(saveBranchSearch)).length === 0 && (
-                        <div style={{ padding: "9px 14px", fontSize: 12, color: "#bbb" }}>검색 결과 없음</div>
-                      )}
+          {/* 출력/저장 모달 — 담당자 정보 입력 */}
+            {showPrintModal && (() => {
+              const pCenters = pRegion && ORG[pRegion] ? Object.keys(ORG[pRegion]) : Object.values(ORG).flatMap(c => Object.keys(c)).filter((v,i,a)=>a.indexOf(v)===i);
+              const pBranchList = (() => {
+                if (pRegion && pCenter && ORG[pRegion]?.[pCenter]) return ORG[pRegion][pCenter];
+                if (pRegion) return Object.values(ORG[pRegion]).flat();
+                if (pCenter) { const r = CENTER_LOOKUP[pCenter]; return r && ORG[r]?.[pCenter] ? ORG[r][pCenter] : ALL_BRANCHES; }
+                return ALL_BRANCHES;
+              })();
+              const pEmpList = getEmpList(pBranch);
+              const pFinalName = pName === "__MANUAL__" ? pManualName.trim() : pName;
+              const pFilteredEmp = pEmpSearch ? pEmpList.filter(e => e.n.includes(pEmpSearch)) : pEmpList;
+              const canAction = pBranch && pFinalName;
+              const savePrintStaff = () => { try { localStorage.setItem("sp_print_staff", JSON.stringify({ region: pRegion, center: pCenter, branch: pBranch, name: pName, manualName: pManualName, ts: Date.now() })); } catch {} };
+              return (
+                <div style={S.overlay} onClick={() => setShowPrintModal(false)}>
+                  <div style={{ ...S.modal, maxWidth: 380, maxHeight: "92vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: "#222", marginBottom: 14, textAlign: "center" }}>🖨 출력 / 저장</div>
+                    <Select label="지역단" value={pRegion} onChange={v => { setPRegion(v); setPCenter(""); setPBranch(""); setPName(""); }} options={Object.keys(ORG)} placeholder="선택" />
+                    <Select label="비전센터" value={pCenter} onChange={v => { setPCenter(v); setPBranch(""); setPName(""); }} options={pCenters} placeholder="선택" disabled={!pRegion} />
+                    <Select label="지점" value={pBranch} onChange={v => { setPBranch(v); setPName(""); }} options={pBranchList} placeholder="선택" disabled={!pCenter} />
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "#666", marginBottom: 5 }}>성명</div>
+                      <div onClick={() => { if (pBranch) { setPNamePickerOpen(true); setPEmpSearch(""); } }}
+                        style={{ padding: "12px 14px", background: "#fff", border: "1px solid #ddd", borderRadius: 10, fontSize: 14, color: pFinalName ? "#222" : "#999", cursor: pBranch ? "pointer" : "default" }}>
+                        {pFinalName || (pBranch ? "성명 선택" : "지점 먼저 선택")}
+                      </div>
                     </div>
-                  )}
+                    {pName === "__MANUAL__" && (
+                      <input value={pManualName} onChange={e => setPManualName(e.target.value)} placeholder="이름 직접 입력"
+                        style={{ width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 8, fontSize: 13, marginBottom: 12, boxSizing: "border-box" }} />
+                    )}
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "#666", marginBottom: 5 }}>고객명</div>
+                      <input value={pClientName} onChange={e => setPClientName(e.target.value)} placeholder="고객명 입력"
+                        style={{ width: "100%", padding: "12px 14px", border: "1px solid #ddd", borderRadius: 10, fontSize: 14, boxSizing: "border-box" }} />
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => setShowPrintModal(false)} style={{ flex: 1, padding: 11, background: "#f5f5f5", border: "none", borderRadius: 10, fontSize: 13, cursor: "pointer", color: "#666" }}>취소</button>
+                      <button onClick={() => { if (!canAction) return; savePrintStaff(); doSaveReceipt(); }} disabled={!canAction}
+                        style={{ flex: 1, padding: 11, background: canAction ? "linear-gradient(135deg,#1565c0,#0d47a1)" : "#ccc", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: canAction ? "pointer" : "default", color: "#fff" }}>💾 저장</button>
+                      <button onClick={() => { if (!canAction) return; savePrintStaff(); if (pClientName.trim()) setConsultClientName(pClientName); setShowPrintModal(false); printContent(pFinalName, pBranch, pClientName); }} disabled={!canAction}
+                        style={{ flex: 1, padding: 11, background: canAction ? "linear-gradient(135deg,#F97316,#EA580C)" : "#ccc", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: canAction ? "pointer" : "default", color: "#fff" }}>🖨 출력</button>
+                    </div>
+                    {/* 성명 피커 */}
+                    {pNamePickerOpen && (
+                      <div style={{ position: "fixed", inset: 0, background: "#0004", zIndex: 300, display: "flex", alignItems: "flex-end" }} onClick={() => setPNamePickerOpen(false)}>
+                        <div style={{ background: "#fff", borderRadius: "16px 16px 0 0", padding: 16, width: "100%", maxHeight: "60vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+                          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>{pBranch} 성명 선택</div>
+                          <input value={pEmpSearch} onChange={e => setPEmpSearch(e.target.value)} placeholder="이름 검색"
+                            style={{ width: "100%", padding: "8px 12px", border: "1px solid #ddd", borderRadius: 8, fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            {pFilteredEmp.map(e => (
+                              <button key={e.n} onClick={() => { setPName(e.n); setPNamePickerOpen(false); }}
+                                style={{ padding: "7px 13px", background: pName===e.n?"#F97316":"#fff", border: `1px solid ${pName===e.n?"#F97316":"#e5e5e5"}`, borderRadius: 20, color: pName===e.n?"#fff":"#555", fontSize: 13, cursor: "pointer" }}>{e.n}</button>
+                            ))}
+                            <button onClick={() => { setPName("__MANUAL__"); setPNamePickerOpen(false); }}
+                              style={{ padding: "7px 13px", background: pName==="__MANUAL__"?"#F97316":"#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 20, color: pName==="__MANUAL__"?"#fff":"#888", fontSize: 13, cursor: "pointer" }}>직접입력</button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                {saveBranch && <div style={{ fontSize: 11, color: "#F97316", marginBottom: 10 }}>✓ {saveBranch}</div>}
-                {!saveBranch && saveBranchSearch === "" && <div style={{ fontSize: 11, color: "#bbb", marginBottom: 10 }}>소속을 선택해 주세요</div>}
-                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                  <button onClick={() => { setShowSaveReceiptModal(false); setSaveBranchSearch(""); }} style={{ flex: 1, padding: 11, background: "#f5f5f5", border: "none", borderRadius: 10, fontSize: 13, cursor: "pointer", color: "#666" }}>취소</button>
-                  <button onClick={doSaveReceipt} disabled={!saveBranch} style={{ flex: 2, padding: 11, background: saveBranch ? "linear-gradient(135deg,#1565c0,#0d47a1)" : "#ccc", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: saveBranch ? "pointer" : "default", color: "#fff" }}>저장</button>
-                </div>
-              </div>
-            </div>
-          )}
+              );
+            })()}
 
-          {/* 불러오기 모달 */}
+          {/* 불러오기 모달 — 담당자 이름 검색 */}
           {showLoadReceiptModal && (
             <div style={S.overlay} onClick={() => setShowLoadReceiptModal(false)}>
-              <div style={{ ...S.modal, maxWidth: 400, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "#222", marginBottom: 4, textAlign: "center" }}>📂 저장된 컨설팅</div>
-                <div style={{ fontSize: 11, color: "#888", textAlign: "center", marginBottom: 12 }}>{selBranch}</div>
+              <div style={{ ...S.modal, maxWidth: 400, maxHeight: "85vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "#222", marginBottom: 10, textAlign: "center" }}>📂 저장된 컨설팅 불러오기</div>
+                <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                  <input value={loadStaffSearch} onChange={e => setLoadStaffSearch(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") loadReceiptRecords(loadStaffSearch.trim()); }}
+                    placeholder="담당자 이름 입력 후 검색"
+                    style={{ flex: 1, padding: "9px 12px", border: "1px solid #ddd", borderRadius: 8, fontSize: 13 }} />
+                  <button onClick={() => loadReceiptRecords(loadStaffSearch.trim())}
+                    style={{ padding: "9px 14px", background: "#F97316", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>검색</button>
+                </div>
                 {receiptLoading ? (
-                  <div style={{ textAlign: "center", padding: 24, color: "#bbb", fontSize: 13 }}>불러오는 중...</div>
-                ) : receiptRecords.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: 24, color: "#bbb", fontSize: 13 }}>검색 중...</div>
+                ) : receiptRecords.length === 0 && loadStaffSearch ? (
                   <div style={{ textAlign: "center", padding: 24, color: "#bbb", fontSize: 13 }}>저장된 내용이 없습니다</div>
                 ) : (
                   <div>
@@ -1900,9 +1936,7 @@ export default function App() {
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                           <div style={{ cursor: "pointer", flex: 1 }} onClick={() => applyReceiptRecord(r)}>
                             <div style={{ fontSize: 14, fontWeight: 700, color: "#222" }}>{r.clientName}</div>
-                            <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
-                              {r.date} &nbsp;|&nbsp; {r.years}년 &nbsp;|&nbsp; {r.branch}
-                            </div>
+                            <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{r.date} &nbsp;|&nbsp; {r.staffName} · {r.branch}</div>
                           </div>
                           <button onClick={() => { if (window.confirm("삭제할까요?")) deleteReceiptRecord(r.id); }}
                             style={{ padding: "3px 8px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, color: "#EF4444", fontSize: 11, cursor: "pointer", flexShrink: 0, marginLeft: 8 }}>삭제</button>
