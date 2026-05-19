@@ -317,6 +317,7 @@ ORG_RAW.trim().split("\n").forEach(line => {
 
 // ─── 버전 변경이력 ───
 const CHANGELOG = [
+  { ver: "v1.37", date: "2026.05.19", desc: "치료년수 팝업 버튼 선택, 전/후 컬럼명을 기존계약/신규제안으로 변경, 출력 합계행에 기존계약·신규제안 합계 추가" },
   { ver: "v1.36", date: "2026.05.19", desc: "출력 팝업: 주요치료비 합산 내역 포함, 사진저장 여백 제거(본문만 캡처), 닫기 버튼 추가" },
   { ver: "v1.35", date: "2026.05.19", desc: "출력/저장 모달에 지역단·비전센터·지점·성명 선택 추가, 담당자 기기 1일 기억, 불러오기 담당자 이름 검색으로 변경" },
   { ver: "v1.34", date: "2026.05.19", desc: "주요치료비 합산로직 개선: 암주요치료비III·하이클래스암주요치료비 수술/약물/방사선 각각 연간 합산, 암주요치료비IV 단일횟수·수술1회 고정, 하이클래스암주요치료비II 카테고리별 1,000만, 하이클래스암특정치료비 항목별 지급, 주요치료비 합산 내역 표시, 저장 버튼 제거" },
@@ -966,6 +967,7 @@ export default function App() {
   const [consultGroup, setConsultGroup] = useState("cancer");
   const [consultAmounts, setConsultAmounts] = useState({});
   const [consultYears, setConsultYears] = useState(1);
+  const [showYearsPicker, setShowYearsPicker] = useState(false);
   const [consultClientName, setConsultClientName] = useState("");
   const [consultClientNameError, setConsultClientNameError] = useState(false);
   const [consultCustomItems, setConsultCustomItems] = useState({ cancer: [], cerebrovascular: [], frequent: [] });
@@ -1491,6 +1493,8 @@ export default function App() {
     const hasData = (item) => getAmt(item.id,"before") || getAmt(item.id,"after");
     const grandBefore = allItems.reduce((s, item) => s + calcTotal(item).before, 0);
     const grandAfter = allItems.reduce((s, item) => s + calcTotal(item).after, 0);
+    const rawBefore = allItems.filter(hasData).reduce((s, item) => s + Number(getAmt(item.id,"before") || 0), 0);
+    const rawAfter = allItems.filter(hasData).reduce((s, item) => s + Number(getAmt(item.id,"after") || 0), 0);
 
     // Print popup
     const printContent = (ovStaff, ovBranch, ovClient) => {
@@ -1616,17 +1620,18 @@ export default function App() {
         <table><colgroup><col style="width:30%"><col style="width:18%"><col style="width:13%"><col style="width:13%"><col style="width:13%"><col style="width:13%"></colgroup><thead><tr style="background:#F97316;color:#fff">
           <th style="padding:4px 6px;font-size:13px;text-align:left">보장내역</th>
           <th style="padding:4px 5px;font-size:13px;text-align:center">보장횟수 / 출시일</th>
-          <th style="padding:4px 5px;font-size:13px;text-align:right">전(만원)</th>
-          <th style="padding:4px 5px;font-size:13px;text-align:right">후(만원)</th>
-          <th style="padding:4px 5px;font-size:13px;text-align:right">${years}년합계(전)</th>
-          <th style="padding:4px 5px;font-size:13px;text-align:right">${years}년합계(후)</th>
+          <th style="padding:4px 5px;font-size:13px;text-align:right">기존계약(만원)</th>
+          <th style="padding:4px 5px;font-size:13px;text-align:right">신규제안(만원)</th>
+          <th style="padding:4px 5px;font-size:13px;text-align:right">${years}년합계(기존)</th>
+          <th style="padding:4px 5px;font-size:13px;text-align:right">${years}년합계(신규)</th>
         </tr></thead>
         <tbody>${catSection}${customSec}</tbody>
         <tfoot><tr style="background:#FFF3E0;font-weight:700">
           <td colspan="2" style="padding:4px 6px;font-size:14px">합계</td>
-          <td colspan="2"></td>
-          <td style="padding:4px 5px;font-size:15px;text-align:right;color:#c00">${grandBefore.toLocaleString()}만원</td>
-          <td style="padding:4px 5px;font-size:15px;text-align:right;color:#1565c0">${grandAfter.toLocaleString()}만원</td>
+          <td style="padding:4px 5px;font-size:14px;text-align:right;color:#c00;white-space:nowrap">${rawBefore > 0 ? rawBefore.toLocaleString()+"만" : ""}</td>
+          <td style="padding:4px 5px;font-size:14px;text-align:right;color:#1565c0;white-space:nowrap">${rawAfter > 0 ? rawAfter.toLocaleString()+"만" : ""}</td>
+          <td style="padding:4px 5px;font-size:15px;text-align:right;color:#c00;white-space:nowrap">${grandBefore.toLocaleString()}만원</td>
+          <td style="padding:4px 5px;font-size:15px;text-align:right;color:#1565c0;white-space:nowrap">${grandAfter.toLocaleString()}만원</td>
         </tr></tfoot></table>
         ${breakdownHtml}
         <div style="margin-top:8px;font-size:12px;color:#aaa">※ 금액단위:만원 / 최초1회한=1회 / 연간·치료당=×${years}년 / 일당=일수×${years}년</div>
@@ -1672,9 +1677,21 @@ export default function App() {
               <div style={{ fontSize: 10, color: "#888", marginBottom: 3 }}>고객명</div>
               <input value={consultClientName} onChange={e => { setConsultClientName(e.target.value); if (consultClientNameError) setConsultClientNameError(false); }} style={{ ...iStyle, textAlign: "left", borderColor: consultClientNameError ? "#EF4444" : undefined }} placeholder="고객명 (필수)" />
             </div>
-            <div style={{ width: 80 }}>
+            <div style={{ width: 80, position: "relative" }}>
               <div style={{ fontSize: 10, color: "#888", marginBottom: 3 }}>치료 년수</div>
-              <input type="number" min="1" max="30" value={consultYears} onChange={e => setConsultYears(e.target.value)} style={iStyle} />
+              <button onClick={() => setShowYearsPicker(v => !v)} style={{ width: "100%", padding: "5px 4px", border: "1px solid #ddd", borderRadius: 5, fontSize: 13, fontWeight: 700, background: "#fff", color: "#222", cursor: "pointer", textAlign: "center" }}>
+                {consultYears}년 ▾
+              </button>
+              {showYearsPicker && (
+                <div style={{ position: "absolute", top: "100%", right: 0, zIndex: 100, background: "#fff", border: "1px solid #ddd", borderRadius: 8, boxShadow: "0 4px 16px #0002", padding: 8, display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 4, minWidth: 180 }}>
+                  {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20].map(y => (
+                    <button key={y} onClick={() => { setConsultYears(y); setShowYearsPicker(false); }}
+                      style={{ padding: "6px 2px", border: "none", borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: "pointer", background: consultYears === y ? "#F97316" : "#f5f5f5", color: consultYears === y ? "#fff" : "#333" }}>
+                      {y}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1695,9 +1712,9 @@ export default function App() {
                 {/* 헤더 */}
                 <div style={{ display: "flex", background: "#fafafa", borderBottom: "1px solid #eee", padding: "4px 0" }}>
                   <div style={{ flex: 1, fontSize: 10, color: "#666", fontWeight: 600, padding: "0 8px" }}>보장내역</div>
-                  <div style={{ width: (hasPT || hasDaily) ? "17%" : "19%", fontSize: 10, color: "#c2440c", fontWeight: 700, textAlign: "center" }}>전(만)</div>
+                  <div style={{ width: (hasPT || hasDaily) ? "17%" : "19%", fontSize: 9, color: "#c2440c", fontWeight: 700, textAlign: "center" }}>기존계약</div>
                   {hasPT && <div style={{ width: "14%", fontSize: 10, color: "#888", fontWeight: 600, textAlign: "center" }}>횟수</div>}
-                  <div style={{ width: (hasPT || hasDaily) ? "17%" : "19%", fontSize: 10, color: "#1565c0", fontWeight: 700, textAlign: "center" }}>후(만)</div>
+                  <div style={{ width: (hasPT || hasDaily) ? "17%" : "19%", fontSize: 9, color: "#1565c0", fontWeight: 700, textAlign: "center" }}>신규제안</div>
                   {hasDaily && <div style={{ width: "14%", fontSize: 10, color: "#888", fontWeight: 600, textAlign: "center" }}>일수</div>}
                 </div>
                 {cat.items.map(item => {
@@ -1790,8 +1807,8 @@ export default function App() {
                     <button onClick={() => removeCustomItem(item.id)} style={{ padding: "3px 7px", background: "#fee2e2", border: "none", borderRadius: 5, color: "#dc2626", fontSize: 12, cursor: "pointer", fontWeight: 700 }}>✕</button>
                   </div>
                   <div style={{ display: "flex", gap: 5 }}>
-                    <input type="number" min="0" value={getAmt(item.id,"before")} onChange={e => setAmt(item.id,"before",e.target.value)} placeholder="전(만)" style={{ flex: 1, ...iStyle, borderColor: "#F97316" }} />
-                    <input type="number" min="0" value={getAmt(item.id,"after")} onChange={e => setAmt(item.id,"after",e.target.value)} placeholder="후(만)" style={{ flex: 1, ...iStyle, borderColor: "#1565c0" }} />
+                    <input type="number" min="0" value={getAmt(item.id,"before")} onChange={e => setAmt(item.id,"before",e.target.value)} placeholder="기존" style={{ flex: 1, ...iStyle, borderColor: "#F97316" }} />
+                    <input type="number" min="0" value={getAmt(item.id,"after")} onChange={e => setAmt(item.id,"after",e.target.value)} placeholder="신규" style={{ flex: 1, ...iStyle, borderColor: "#1565c0" }} />
                     {isDaily && <input type="number" min="0" value={getAmt(item.id,"days")} onChange={e => setAmt(item.id,"days",e.target.value)} placeholder="일수" style={{ width: 56, ...dStyle }} />}
                   </div>
                   {(t.before > 0 || t.after > 0) && (
