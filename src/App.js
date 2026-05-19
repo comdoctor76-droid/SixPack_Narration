@@ -1021,16 +1021,19 @@ export default function App() {
       amounts: consultAmounts,
       customItems: consultCustomItems,
     };
+    // 모달 즉시 닫고 로컬 저장 먼저
+    setShowPrintModal(false);
+    try { localStorage.setItem("sp_print_staff", JSON.stringify({ region: pRegion, center: pCenter, branch: pBranch, name: pName, manualName: pManualName, ts: Date.now() })); } catch {}
+    alert("저장 완료!");
+    // Firebase 백그라운드 저장
     try {
       await initDB();
       let existing = [];
       try { existing = await getDB().loadReceipts() || []; } catch {}
       existing.unshift(record);
       await getDB().saveReceipts(existing);
-      try { localStorage.setItem("sp_print_staff", JSON.stringify({ region: pRegion, center: pCenter, branch: pBranch, name: pName, manualName: pManualName, ts: Date.now() })); } catch {}
     } catch (e) { console.error("Receipt save:", e); }
-    setShowPrintModal(false);
-    alert("저장 완료!");
+  };
   };
 
   const loadReceiptRecords = async (staffName) => {
