@@ -1034,7 +1034,6 @@ export default function App() {
       await getDB().saveReceipts(existing);
     } catch (e) { console.error("Receipt save:", e); }
   };
-  };
 
   const loadReceiptRecords = async (staffName) => {
     if (!staffName) return;
