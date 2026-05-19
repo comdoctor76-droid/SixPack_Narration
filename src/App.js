@@ -317,6 +317,7 @@ ORG_RAW.trim().split("\n").forEach(line => {
 
 // ─── 버전 변경이력 ───
 const CHANGELOG = [
+  { ver: "v1.36", date: "2026.05.19", desc: "출력 팝업: 주요치료비 합산 내역 포함, 사진저장 여백 제거(본문만 캡처), 닫기 버튼 추가" },
   { ver: "v1.35", date: "2026.05.19", desc: "출력/저장 모달에 지역단·비전센터·지점·성명 선택 추가, 담당자 기기 1일 기억, 불러오기 담당자 이름 검색으로 변경" },
   { ver: "v1.34", date: "2026.05.19", desc: "주요치료비 합산로직 개선: 암주요치료비III·하이클래스암주요치료비 수술/약물/방사선 각각 연간 합산, 암주요치료비IV 단일횟수·수술1회 고정, 하이클래스암주요치료비II 카테고리별 1,000만, 하이클래스암특정치료비 항목별 지급, 주요치료비 합산 내역 표시, 저장 버튼 제거" },
   { ver: "v1.33", date: "2026.05.18", desc: "영수증컨설팅 저장/불러오기 기능 추가 (소속별 Firebase 저장, 날짜·고객명 필터), 출력 전 고객명 유효성 확인" },
@@ -1526,23 +1527,64 @@ export default function App() {
         <td colspan="2"></td></tr>${customPrint.map(renderPrintRow).join("")}` : "";
       const staffName = (ovStaff) || (nameInput==="__MANUAL__"?manualNameInput:nameInput);
       const titleText = groupData?groupData.label:"";
+      // 주요치료비 합산 내역 HTML 생성
+      const MAJOR_IDS_P = ["ca_t13","ca_t13b","ca_t14","ca_t14b","ca_t14c"];
+      const majorItemsP = allItems.filter(i => MAJOR_IDS_P.includes(i.id) && hasData(i));
+      const breakdownHtml = (() => {
+        if (!majorItemsP.length) return "";
+        const rows = majorItemsP.map(item => {
+          const av = getAmt(item.id, "after");
+          const n = Number(av || 0);
+          if (!n) return null;
+          const cnt = Number(getAmt(item.id, "count") || 0);
+          const t = calcTotal(item).after;
+          let parts = [];
+          if (item.freqType === "annual_multi") {
+            parts.push(`수술 ${n.toLocaleString()}×${years}년`);
+            parts.push(`약물 ${n.toLocaleString()}×${years}년`);
+            parts.push(`방사선 ${n.toLocaleString()}×${years}년`);
+          } else if (item.id === "ca_t13b") {
+            const c = cnt > 0 ? cnt : 1;
+            parts.push(`수술 ${n.toLocaleString()}×1회`);
+            parts.push(`약물 ${n.toLocaleString()}×${c}회`);
+            parts.push(`방사선 ${n.toLocaleString()}×${c}회`);
+          } else if (item.freqType === "hi_major") {
+            parts.push(`수술 1,000×${years}년`);
+            parts.push(`약물 1,000×${years}년`);
+            parts.push(`방사선 1,000×${years}년`);
+            if (getV("ca_t3", "after") > 0) parts.push(`로봇 1,000×${years}년`);
+          } else if (item.id === "ca_t14c") {
+            const hasRobot2 = getV("ca_t3", "after") > 0;
+            const hasTarget2 = ["ca_t8","ca_t8b","ca_e6"].some(x => getV(x, "after") > 0);
+            const hasImmuno2 = ["ca_t6","ca_e4"].some(x => getV(x, "after") > 0);
+            const hasProton2 = ["ca_t12b","ca_t12c"].some(x => getV(x, "after") > 0);
+            if (hasRobot2) parts.push(`로봇수술 1,000×${years}년`);
+            if (hasTarget2) parts.push(`표적항암 3,000×${years}년`);
+            if (hasImmuno2) parts.push(`면역항암 3,000×${years}년`);
+            if (hasProton2) parts.push(`양성자 3,000×${years}년`);
+            if (!parts.length) parts.push(`${n.toLocaleString()}×${years}년`);
+          }
+          if (!parts.length) return null;
+          return `<div style="margin-bottom:5px"><div style="font-size:13px;font-weight:700;color:#222">${item.label}</div><div style="font-size:12px;color:#555;margin-top:1px">${parts.join(" + ")} = <b style="color:#1565c0">${t.toLocaleString()}만</b></div></div>`;
+        }).filter(Boolean);
+        if (!rows.length) return "";
+        return `<div style="background:#f0f7ff;border-radius:8px;border:1px solid #bbdefb;padding:10px 12px;margin-top:10px"><div style="font-size:13px;font-weight:800;color:#1565c0;margin-bottom:8px">📊 주요치료비 합산 내역 (후)</div>${rows.join("")}</div>`;
+      })();
+
       const sc = "\x3C/script>";
       const win = window.open("","_blank","width=780,height=900");
       if (!win) { alert("팝업 차단을 해제해주세요."); return; }
       win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
         <title>${titleText} - ${consultClientName}</title>
         <style>
-          body{font-family:'Malgun Gothic',sans-serif;margin:16px;color:#222}
+          body{font-family:'Malgun Gothic',sans-serif;margin:0;color:#222}
           table{border-collapse:collapse;width:100%}
           @media print{#btns{display:none!important}}
         </style>
         <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js">${sc}
         <script>
         function saveImage(){
-          var btns=document.getElementById('btns');
-          btns.style.display='none';
-          html2canvas(document.body,{scale:2,useCORS:true,backgroundColor:'#ffffff'}).then(function(canvas){
-            btns.style.display='';
+          html2canvas(document.getElementById('printWrap'),{scale:2,useCORS:true,backgroundColor:'#ffffff'}).then(function(canvas){
             canvas.toBlob(function(blob){
               var fileName='${titleText}_${consultClientName}.png';
               var file=new File([blob],fileName,{type:'image/png'});
@@ -1559,15 +1601,17 @@ export default function App() {
         }
         ${sc}
       </head><body>
+        <div id="btns" style="padding:8px 16px;display:flex;gap:6px">
+          <button onclick="window.print()" style="padding:6px 18px;background:#F97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:15px">🖨 인쇄</button>
+          <button onclick="saveImage()" style="padding:6px 18px;background:#1565c0;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:15px">📷 사진저장</button>
+          <button onclick="window.close()" style="padding:6px 18px;background:#888;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:15px">✕ 닫기</button>
+        </div>
+        <div id="printWrap" style="padding:16px">
         <div style="text-align:center;margin-bottom:10px">
           <div style="font-size:15px;color:#F97316;font-weight:700">현대해상</div>
           <div style="font-size:20px;font-weight:900">${titleText}</div>
           <div style="font-size:14px;color:#555">고객명: <b>${ovClient||consultClientName}</b> &nbsp;|&nbsp; 치료년수: <b>${years}년</b></div>
           <div style="font-size:13px;color:#888">담당: ${ovBranch||selBranch} ${staffName}</div>
-        </div>
-        <div id="btns" style="margin-bottom:8px;display:flex;gap:6px">
-          <button onclick="window.print()" style="padding:6px 18px;background:#F97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:15px">🖨 인쇄</button>
-          <button onclick="saveImage()" style="padding:6px 18px;background:#1565c0;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:15px">📷 사진저장</button>
         </div>
         <table><colgroup><col style="width:30%"><col style="width:18%"><col style="width:13%"><col style="width:13%"><col style="width:13%"><col style="width:13%"></colgroup><thead><tr style="background:#F97316;color:#fff">
           <th style="padding:4px 6px;font-size:13px;text-align:left">보장내역</th>
@@ -1584,7 +1628,9 @@ export default function App() {
           <td style="padding:4px 5px;font-size:15px;text-align:right;color:#c00">${grandBefore.toLocaleString()}만원</td>
           <td style="padding:4px 5px;font-size:15px;text-align:right;color:#1565c0">${grandAfter.toLocaleString()}만원</td>
         </tr></tfoot></table>
+        ${breakdownHtml}
         <div style="margin-top:8px;font-size:12px;color:#aaa">※ 금액단위:만원 / 최초1회한=1회 / 연간·치료당=×${years}년 / 일당=일수×${years}년</div>
+        </div>
       </body></html>`);
       win.document.close();
     };
