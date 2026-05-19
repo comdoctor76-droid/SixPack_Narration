@@ -317,6 +317,7 @@ ORG_RAW.trim().split("\n").forEach(line => {
 
 // ─── 버전 변경이력 ───
 const CHANGELOG = [
+  { ver: "v1.34", date: "2026.05.19", desc: "주요치료비 합산로직 개선: 암주요치료비III·하이클래스암주요치료비 수술/약물/방사선 각각 연간 합산, 암주요치료비IV 단일횟수·수술1회 고정, 하이클래스암주요치료비II 카테고리별 1,000만, 하이클래스암특정치료비 항목별 지급, 주요치료비 합산 내역 표시, 저장 버튼 제거" },
   { ver: "v1.33", date: "2026.05.18", desc: "영수증컨설팅 저장/불러오기 기능 추가 (소속별 Firebase 저장, 날짜·고객명 필터), 출력 전 고객명 유효성 확인" },
   { ver: "v1.32", date: "2026.05.18", desc: "암주요치료비IV 수술/약물/방사선 횟수 개별 입력, 하이클래스암주요치료비II 보너스 내역 표시, 인쇄 열 간격·줄바꿈 개선" },
   { ver: "v1.31", date: "2026.05.18", desc: "버전 변경이력 테이블 추가 (로그인 화면 하단)" },
@@ -369,7 +370,7 @@ const CONSULT_ITEMS = {
         { id:"ca_t13", label:"암주요치료비III", freq:"각 연간1회한 (수술/약물/방사선 각각)", freqType:"annual_multi", date:"2025.08" },
         { id:"ca_t13b", label:"암주요치료비IV", freq:"치료당", freqType:"per_treatment", date:"2026.01" },
         { id:"ca_t13c", label:"유사암주요치료비", freq:"각 연간1회한", freqType:"annual", date:"2025.08" },
-        { id:"ca_t14", label:"하이클래스암주요치료비", freq:"연간1회한", freqType:"annual", date:"2025.04" },
+        { id:"ca_t14", label:"하이클래스암주요치료비", freq:"각 연간1회한(수술/약물/방사선 각각)", freqType:"annual_multi", date:"2025.04" },
         { id:"ca_t14b", label:"하이클래스암주요치료비II", freq:"각 연간1회한(한도)", freqType:"hi_major", date:"2026.01" },
         { id:"ca_t14c", label:"하이클래스암특정치료비", freq:"각 연간1회한(한도)", freqType:"annual", date:"2026.01" },
         { id:"ca_t15", label:"하이클래스항암약물치료", freq:"연간1회한", freqType:"annual", date:"2025.04" },
@@ -974,7 +975,6 @@ export default function App() {
   const [saveBranchSearch, setSaveBranchSearch] = useState("");
   const [receiptRecords, setReceiptRecords] = useState([]);
   const [receiptLoading, setReceiptLoading] = useState(false);
-  const [receiptSaveOk, setReceiptSaveOk] = useState(false);
   const pageHistoryRef = useRef([]);
   const wakeLockRef = useRef(null);
   const [pendingEvalText, setPendingEvalText] = useState("");
@@ -1020,8 +1020,6 @@ export default function App() {
       try { localStorage.setItem("sp_receipt_branch", JSON.stringify({ branch: saveBranch.trim(), ts: Date.now() })); } catch {}
     } catch (e) { console.error("Receipt save:", e); }
     setShowSaveReceiptModal(false);
-    setReceiptSaveOk(true);
-    setTimeout(() => setReceiptSaveOk(false), 2500);
   };
 
   const loadReceiptRecords = async () => {
@@ -1426,20 +1424,41 @@ export default function App() {
       setConsultAmounts(prev => { const n = { ...prev }; delete n[id]; return n; });
     };
 
-    // Returns totals in 만원; per_treatment uses count field (× years if no count); daily uses 일수 × years
+    // Returns totals in 만원; per_treatment uses count field; daily uses 일수 × years
+    const SURG_IDS  = ["ca_t1","ca_t2","ca_e2"];
+    const DRUG_IDS  = ["ca_t6","ca_t8","ca_t8b","ca_e4","ca_e6"];
+    const RADIO_IDS = ["ca_t10","ca_t12","ca_t12b","ca_t12c","ca_e8"];
+    const hasTrigger = (ids, field) => ids.some(id2 => Number(getAmt(id2, field)) > 0);
+
     const calcTotal = (item) => {
       const calcOne = (amtStr, field) => {
         const n = Number(String(amtStr || "").replace(/,/g,""));
         if (!amtStr || isNaN(n) || n === 0) return 0;
         if (item.freqType === "once") return n;
-        if (item.freqType === "annual") return n * years;
+        if (item.freqType === "annual") {
+          // 하이클래스암특정치료비: specific bonus per triggered item type
+          if (item.id === "ca_t14c") {
+            const hasRobot  = Number(getAmt("ca_t3", field)) > 0;
+            const hasTarget = hasTrigger(["ca_t8","ca_t8b"], field);
+            const hasImmuno = Number(getAmt("ca_t6", field)) > 0;
+            const hasProton = hasTrigger(["ca_t12b","ca_t12c"], field);
+            const pay = (hasRobot?1000:0) + (hasTarget?3000:0) + (hasImmuno?3000:0) + (hasProton?3000:0);
+            return Math.min(n, pay || n) * years;
+          }
+          return n * years;
+        }
         if (item.freqType === "per_treatment") {
+          // 암주요치료비IV: surgery×1, drug/radio×count (detected from other items)
           if (item.id === "ca_t13b") {
-            const surg = Number(getAmt(item.id, "count_surg") || 0);
-            const drug = Number(getAmt(item.id, "count_drug") || 0);
-            const radio = Number(getAmt(item.id, "count_radio") || 0);
-            const tot = surg + drug + radio;
-            return tot > 0 ? n * tot : n * years;
+            const cnt   = Number(getAmt(item.id, "count") || 0);
+            const c     = cnt > 0 ? cnt : 1;
+            const hSurg = hasTrigger(SURG_IDS, field);
+            const hDrug = hasTrigger(DRUG_IDS, field);
+            const hRad  = hasTrigger(RADIO_IDS, field);
+            if (hSurg || hDrug || hRad) {
+              return (hSurg ? n : 0) + (hDrug ? n * c : 0) + (hRad ? n * c : 0);
+            }
+            return cnt > 0 ? n * cnt : n * years;
           }
           const cntStr = getAmt(item.id, "count");
           const cnt = cntStr !== "" ? Number(cntStr) : null;
@@ -1450,26 +1469,21 @@ export default function App() {
           return n * days * years;
         }
         if (item.freqType === "annual_multi") {
-          // 암주요치료비3: pays annually per triggered category (약물/방사선/수술)
-          const drugIds = ["ca_t6","ca_t8","ca_t8b","ca_e4","ca_e6","ca_e14"];
-          const radioIds = ["ca_t10","ca_t12","ca_t12b","ca_t12c","ca_e8","ca_e10","ca_e12"];
-          const surgIds = ["ca_t1","ca_t2","ca_e2"];
-          const hasDrug = drugIds.some(id => Number(getAmt(id, field)) > 0);
-          const hasRadio = radioIds.some(id => Number(getAmt(id, field)) > 0);
-          const hasSurg = surgIds.some(id => Number(getAmt(id, field)) > 0);
-          const mult = (hasDrug ? 1 : 0) + (hasRadio ? 1 : 0) + (hasSurg ? 1 : 0);
+          // 암주요치료비III / 하이클래스암주요치료비: pays n × years per triggered category
+          const hSurg = hasTrigger(SURG_IDS, field);
+          const hDrug = hasTrigger(DRUG_IDS, field);
+          const hRad  = hasTrigger(RADIO_IDS, field);
+          const mult  = (hSurg?1:0) + (hDrug?1:0) + (hRad?1:0);
           return n * Math.max(mult, 1) * years;
         }
         if (item.freqType === "hi_major") {
-          // 하이클래스암주요치료비2: 치료회당 + 1000만 bonus per triggered special item
-          const cntStr = getAmt(item.id, "count");
-          const cnt = cntStr !== "" ? Number(cntStr) : null;
-          const hasRobot = Number(getAmt("ca_t3", field)) > 0;
-          const hasNonCov = Number(getAmt("ca_t8b", field)) > 0;
-          const hasProton = ["ca_t12b","ca_t12c"].some(id => Number(getAmt(id, field)) > 0);
-          const bonus = (hasRobot ? 1000 : 0) + (hasNonCov ? 1000 : 0) + (hasProton ? 1000 : 0);
-          const effectiveAmt = n + bonus;
-          return cnt !== null ? effectiveAmt * cnt : effectiveAmt * years;
+          // 하이클래스암주요치료비II: 1,000만 per triggered category per year, capped at n
+          const hSurg = hasTrigger(SURG_IDS, field);
+          const hDrug = hasTrigger(DRUG_IDS, field);
+          const hRad  = hasTrigger(RADIO_IDS, field);
+          const cnt   = (hSurg?1:0) + (hDrug?1:0) + (hRad?1:0);
+          const annualPay = Math.min(n, 1000 * Math.max(cnt, 1));
+          return annualPay * years;
         }
         return n;
       };
@@ -1628,7 +1642,7 @@ export default function App() {
             const catBefore = cat.items.reduce((s,item) => s + calcTotal(item).before, 0);
             const catAfter = cat.items.reduce((s,item) => s + calcTotal(item).after, 0);
             const hasDaily = cat.items.some(i => i.freqType === "daily");
-            const hasPT = cat.items.some(i => i.freqType === "per_treatment" || i.freqType === "hi_major");
+            const hasPT = cat.items.some(i => i.freqType === "per_treatment");
             return (
               <div key={cat.cat} style={{ background: "#fff", borderRadius: 10, border: "1px solid #eee", marginBottom: 8, overflow: "hidden" }}>
                 <div style={{ background: "#FFF3E0", padding: "6px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1661,17 +1675,6 @@ export default function App() {
                             {t.after > 0 && <span style={{ color: "#1565c0" }}>{t.after.toLocaleString()}만</span>}
                           </div>
                         )}
-                        {active && item.freqType === "hi_major" && (() => {
-                          const field = getAmt(item.id,"after") ? "after" : "before";
-                          const base = Number(getAmt(item.id, field) || 0);
-                          const hasRobot = Number(getAmt("ca_t3", field)) > 0;
-                          const hasNonCov = Number(getAmt("ca_t8b", field)) > 0;
-                          const hasProton = ["ca_t12b","ca_t12c"].some(id2 => Number(getAmt(id2, field)) > 0);
-                          const bonus = (hasRobot?1000:0)+(hasNonCov?1000:0)+(hasProton?1000:0);
-                          if (!bonus || !base) return null;
-                          const parts = [hasRobot&&"로봇+1,000", hasNonCov&&"비급여+1,000", hasProton&&"양성자+1,000"].filter(Boolean);
-                          return <div style={{fontSize:8,color:"#999",marginTop:1}}>기본{base.toLocaleString()} {parts.join(" ")}</div>;
-                        })()}
                       </div>
                       <div style={{ width: (hasPT || hasDaily) ? "17%" : "19%", padding: "0 3px" }}>
                         <input type="number" min="0" value={getAmt(item.id,"before")} onChange={e => setAmt(item.id,"before",e.target.value)}
@@ -1679,13 +1682,7 @@ export default function App() {
                       </div>
                       {hasPT && (
                         <div style={{ width: "14%", padding: "0 3px" }}>
-                          {item.id === "ca_t13b" ? (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                              <input type="number" min="0" value={getAmt(item.id,"count_surg")} onChange={e => setAmt(item.id,"count_surg",e.target.value)} style={{ ...dStyle, textAlign: "center" }} placeholder="수술" />
-                              <input type="number" min="0" value={getAmt(item.id,"count_drug")} onChange={e => setAmt(item.id,"count_drug",e.target.value)} style={{ ...dStyle, textAlign: "center" }} placeholder="약물" />
-                              <input type="number" min="0" value={getAmt(item.id,"count_radio")} onChange={e => setAmt(item.id,"count_radio",e.target.value)} style={{ ...dStyle, textAlign: "center" }} placeholder="방사선" />
-                            </div>
-                          ) : (item.freqType === "per_treatment" || item.freqType === "hi_major") &&
+                          {item.freqType === "per_treatment" &&
                             <input type="number" min="0" value={getAmt(item.id,"count")} onChange={e => setAmt(item.id,"count",e.target.value)} style={{ ...dStyle, textAlign: "center" }} placeholder="횟수" />
                           }
                         </div>
@@ -1768,21 +1765,77 @@ export default function App() {
             })}
           </div>
 
-          {/* 출력 / 저장 */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 4 }} className="no-print">
-            <button onClick={() => {
-              if (!consultClientName.trim()) { setConsultClientNameError(true); return; }
-              setConsultClientNameError(false);
-              printContent();
-            }} style={{ flex: 3, padding: 13, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-              🖨 출력 (인쇄 / 사진저장)
-            </button>
-            <button onClick={() => setShowSaveReceiptModal(true)} style={{ flex: 2, padding: 13, background: "linear-gradient(135deg,#1565c0,#0d47a1)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-              💾 저장
-            </button>
-          </div>
+          {/* 주요치료비 합산 내역 */}
+          {(() => {
+            const MAJOR_IDS = ["ca_t13","ca_t13b","ca_t14","ca_t14b","ca_t14c"];
+            const majorItems = allItems.filter(i => MAJOR_IDS.includes(i.id) && hasData(i));
+            if (!majorItems.length) return null;
+            const field = "after";
+            const getMajorRows = (item) => {
+              const av = getAmt(item.id, "after");
+              const n = Number(av || 0);
+              if (!n) return null;
+              const hSurg = hasTrigger(SURG_IDS, field);
+              const hDrug = hasTrigger(DRUG_IDS, field);
+              const hRad  = hasTrigger(RADIO_IDS, field);
+              const cnt   = Number(getAmt(item.id, "count") || 0);
+              const t     = calcTotal(item).after;
+              let parts = [];
+              if (item.freqType === "annual_multi") {
+                if (hSurg) parts.push(`수술 ${n.toLocaleString()}×${years}년`);
+                if (hDrug) parts.push(`약물 ${n.toLocaleString()}×${years}년`);
+                if (hRad)  parts.push(`방사선 ${n.toLocaleString()}×${years}년`);
+                if (!parts.length) parts.push(`${n.toLocaleString()}×${years}년`);
+              } else if (item.id === "ca_t13b") {
+                const c = cnt > 0 ? cnt : 1;
+                if (hSurg) parts.push(`수술 ${n.toLocaleString()}×1회`);
+                if (hDrug) parts.push(`약물 ${n.toLocaleString()}×${c}회`);
+                if (hRad)  parts.push(`방사선 ${n.toLocaleString()}×${c}회`);
+                if (!parts.length) parts.push(`${n.toLocaleString()}×${cnt||years}`);
+              } else if (item.freqType === "hi_major") {
+                if (hSurg) parts.push(`수술 1,000×${years}년`);
+                if (hDrug) parts.push(`약물 1,000×${years}년`);
+                if (hRad)  parts.push(`방사선 1,000×${years}년`);
+                if (!parts.length) parts.push(`1,000×${years}년`);
+              } else if (item.id === "ca_t14c") {
+                const hasRobot  = Number(getAmt("ca_t3", field)) > 0;
+                const hasTarget = hasTrigger(["ca_t8","ca_t8b"], field);
+                const hasImmuno = Number(getAmt("ca_t6", field)) > 0;
+                const hasProton = hasTrigger(["ca_t12b","ca_t12c"], field);
+                if (hasRobot)  parts.push(`로봇수술 1,000×${years}년`);
+                if (hasTarget) parts.push(`표적항암 3,000×${years}년`);
+                if (hasImmuno) parts.push(`면역항암 3,000×${years}년`);
+                if (hasProton) parts.push(`양성자 3,000×${years}년`);
+                if (!parts.length) parts.push(`${n.toLocaleString()}×${years}년`);
+              }
+              return { label: item.label, parts, total: t };
+            };
+            const rows = majorItems.map(getMajorRows).filter(Boolean);
+            if (!rows.length) return null;
+            return (
+              <div style={{ background: "#f0f7ff", borderRadius: 10, border: "1px solid #bbdefb", padding: "10px 12px", marginBottom: 8 }} className="no-print">
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#1565c0", marginBottom: 6 }}>📊 주요치료비 합산 내역 (후)</div>
+                {rows.map((r, i) => (
+                  <div key={i} style={{ marginBottom: i < rows.length-1 ? 6 : 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#222" }}>{r.label}</div>
+                    <div style={{ fontSize: 10, color: "#555", marginTop: 1 }}>
+                      {r.parts.join(" + ")} = <b style={{ color: "#1565c0" }}>{r.total.toLocaleString()}만</b>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {/* 출력 */}
+          <button onClick={() => {
+            if (!consultClientName.trim()) { setConsultClientNameError(true); return; }
+            setConsultClientNameError(false);
+            printContent();
+          }} className="no-print" style={{ width: "100%", padding: 13, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 4 }}>
+            🖨 출력 (인쇄 / 사진저장)
+          </button>
           {consultClientNameError && <div style={{ color: "#EF4444", fontSize: 12, textAlign: "center", marginBottom: 4 }} className="no-print">고객명을 입력해 주세요</div>}
-          {receiptSaveOk && <div style={{ color: "#10B981", fontSize: 12, textAlign: "center", marginBottom: 4 }} className="no-print">✅ 저장 완료</div>}
           <div style={{ fontSize: 9, color: "#ccc", textAlign: "center", marginBottom: 24, paddingBottom: 20 }}>
             금액단위: 만원 &nbsp;|&nbsp; 최초1회한=1회 / 연간·치료당=×{years}년 / 일당=일수×{years}년
           </div>
