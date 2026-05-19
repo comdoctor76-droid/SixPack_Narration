@@ -1436,10 +1436,7 @@ export default function App() {
     };
 
     // Returns totals in 만원; per_treatment uses count field; daily uses 일수 × years
-    const SURG_IDS  = ["ca_t1","ca_t2","ca_e2"];
-    const DRUG_IDS  = ["ca_t6","ca_t8","ca_t8b","ca_e4","ca_e6"];
-    const RADIO_IDS = ["ca_t10","ca_t12","ca_t12b","ca_t12c","ca_e8"];
-    const hasTrigger = (ids, field) => ids.some(id2 => Number(getAmt(id2, field)) > 0);
+    const getV = (id2, fld) => Number(getAmt(id2, fld) || 0);
 
     const calcTotal = (item) => {
       const calcOne = (amtStr, field) => {
@@ -1447,29 +1444,23 @@ export default function App() {
         if (!amtStr || isNaN(n) || n === 0) return 0;
         if (item.freqType === "once") return n;
         if (item.freqType === "annual") {
-          // 하이클래스암특정치료비: specific bonus per triggered item type
+          // 하이클래스암특정치료비: robot+1000, target+3000, immuno+3000, proton+3000
           if (item.id === "ca_t14c") {
-            const hasRobot  = Number(getAmt("ca_t3", field)) > 0;
-            const hasTarget = hasTrigger(["ca_t8","ca_t8b"], field);
-            const hasImmuno = Number(getAmt("ca_t6", field)) > 0;
-            const hasProton = hasTrigger(["ca_t12b","ca_t12c"], field);
+            const hasRobot  = getV("ca_t3", field) > 0;
+            const hasTarget = ["ca_t8","ca_t8b","ca_e6"].some(x => getV(x, field) > 0);
+            const hasImmuno = ["ca_t6","ca_e4"].some(x => getV(x, field) > 0);
+            const hasProton = ["ca_t12b","ca_t12c"].some(x => getV(x, field) > 0);
             const pay = (hasRobot?1000:0) + (hasTarget?3000:0) + (hasImmuno?3000:0) + (hasProton?3000:0);
             return Math.min(n, pay || n) * years;
           }
           return n * years;
         }
         if (item.freqType === "per_treatment") {
-          // 암주요치료비IV: surgery×1, drug/radio×count (detected from other items)
+          // 암주요치료비IV: 수술 1회 고정 + 약물/방사선 count×금액
           if (item.id === "ca_t13b") {
-            const cnt   = Number(getAmt(item.id, "count") || 0);
-            const c     = cnt > 0 ? cnt : 1;
-            const hSurg = hasTrigger(SURG_IDS, field);
-            const hDrug = hasTrigger(DRUG_IDS, field);
-            const hRad  = hasTrigger(RADIO_IDS, field);
-            if (hSurg || hDrug || hRad) {
-              return (hSurg ? n : 0) + (hDrug ? n * c : 0) + (hRad ? n * c : 0);
-            }
-            return cnt > 0 ? n * cnt : n * years;
+            const cnt = Number(getAmt(item.id, "count") || 0);
+            const c   = cnt > 0 ? cnt : 1;
+            return n + n * c + n * c;  // 수술(1) + 약물(c) + 방사선(c)
           }
           const cntStr = getAmt(item.id, "count");
           const cnt = cntStr !== "" ? Number(cntStr) : null;
@@ -1480,20 +1471,13 @@ export default function App() {
           return n * days * years;
         }
         if (item.freqType === "annual_multi") {
-          // 암주요치료비III / 하이클래스암주요치료비: pays n × years per triggered category
-          const hSurg = hasTrigger(SURG_IDS, field);
-          const hDrug = hasTrigger(DRUG_IDS, field);
-          const hRad  = hasTrigger(RADIO_IDS, field);
-          const mult  = (hSurg?1:0) + (hDrug?1:0) + (hRad?1:0);
-          return n * Math.max(mult, 1) * years;
+          // 암주요치료비III / 하이클래스암주요치료비: 수술+약물+방사선 각각 연간 지급
+          return n * 3 * years;
         }
         if (item.freqType === "hi_major") {
-          // 하이클래스암주요치료비II: 1,000만 per triggered category per year, capped at n
-          const hSurg = hasTrigger(SURG_IDS, field);
-          const hDrug = hasTrigger(DRUG_IDS, field);
-          const hRad  = hasTrigger(RADIO_IDS, field);
-          const cnt   = (hSurg?1:0) + (hDrug?1:0) + (hRad?1:0);
-          const annualPay = Math.min(n, 1000 * Math.max(cnt, 1));
+          // 하이클래스암주요치료비II: 수술1000+약물1000+방사선1000 기본 + 로봇수술시 +1000
+          const hasRobot = getV("ca_t3", field) > 0;
+          const annualPay = Math.min(n, 3000 + (hasRobot ? 1000 : 0));
           return annualPay * years;
         }
         return n;
@@ -1784,33 +1768,28 @@ export default function App() {
               const av = getAmt(item.id, "after");
               const n = Number(av || 0);
               if (!n) return null;
-              const hSurg = hasTrigger(SURG_IDS, field);
-              const hDrug = hasTrigger(DRUG_IDS, field);
-              const hRad  = hasTrigger(RADIO_IDS, field);
-              const cnt   = Number(getAmt(item.id, "count") || 0);
-              const t     = calcTotal(item).after;
+              const cnt = Number(getAmt(item.id, "count") || 0);
+              const t   = calcTotal(item).after;
               let parts = [];
               if (item.freqType === "annual_multi") {
-                if (hSurg) parts.push(`수술 ${n.toLocaleString()}×${years}년`);
-                if (hDrug) parts.push(`약물 ${n.toLocaleString()}×${years}년`);
-                if (hRad)  parts.push(`방사선 ${n.toLocaleString()}×${years}년`);
-                if (!parts.length) parts.push(`${n.toLocaleString()}×${years}년`);
+                parts.push(`수술 ${n.toLocaleString()}×${years}년`);
+                parts.push(`약물 ${n.toLocaleString()}×${years}년`);
+                parts.push(`방사선 ${n.toLocaleString()}×${years}년`);
               } else if (item.id === "ca_t13b") {
                 const c = cnt > 0 ? cnt : 1;
-                if (hSurg) parts.push(`수술 ${n.toLocaleString()}×1회`);
-                if (hDrug) parts.push(`약물 ${n.toLocaleString()}×${c}회`);
-                if (hRad)  parts.push(`방사선 ${n.toLocaleString()}×${c}회`);
-                if (!parts.length) parts.push(`${n.toLocaleString()}×${cnt||years}`);
+                parts.push(`수술 ${n.toLocaleString()}×1회`);
+                parts.push(`약물 ${n.toLocaleString()}×${c}회`);
+                parts.push(`방사선 ${n.toLocaleString()}×${c}회`);
               } else if (item.freqType === "hi_major") {
-                if (hSurg) parts.push(`수술 1,000×${years}년`);
-                if (hDrug) parts.push(`약물 1,000×${years}년`);
-                if (hRad)  parts.push(`방사선 1,000×${years}년`);
-                if (!parts.length) parts.push(`1,000×${years}년`);
+                parts.push(`수술 1,000×${years}년`);
+                parts.push(`약물 1,000×${years}년`);
+                parts.push(`방사선 1,000×${years}년`);
+                if (getV("ca_t3", field) > 0) parts.push(`로봇 1,000×${years}년`);
               } else if (item.id === "ca_t14c") {
-                const hasRobot  = Number(getAmt("ca_t3", field)) > 0;
-                const hasTarget = hasTrigger(["ca_t8","ca_t8b"], field);
-                const hasImmuno = Number(getAmt("ca_t6", field)) > 0;
-                const hasProton = hasTrigger(["ca_t12b","ca_t12c"], field);
+                const hasRobot  = getV("ca_t3", field) > 0;
+                const hasTarget = ["ca_t8","ca_t8b","ca_e6"].some(x => getV(x, field) > 0);
+                const hasImmuno = ["ca_t6","ca_e4"].some(x => getV(x, field) > 0);
+                const hasProton = ["ca_t12b","ca_t12c"].some(x => getV(x, field) > 0);
                 if (hasRobot)  parts.push(`로봇수술 1,000×${years}년`);
                 if (hasTarget) parts.push(`표적항암 3,000×${years}년`);
                 if (hasImmuno) parts.push(`면역항암 3,000×${years}년`);
