@@ -317,6 +317,7 @@ ORG_RAW.trim().split("\n").forEach(line => {
 
 // ─── 버전 변경이력 ───
 const CHANGELOG = [
+  { ver: "v1.42", date: "2026.05.21", desc: "관리자 기록 탭 점수 랜덤 수정 기능 추가 (날짜 필터 범위 내 점수 일괄 랜덤 변경)" },
   { ver: "v1.41", date: "2026.05.21", desc: "Android 녹음 무음 후 재시작 버그 수정: 200ms 딜레이, no-speech/aborted 에러 무시 후 onend에서 재시작" },
   { ver: "v1.40", date: "2026.05.21", desc: "관리자 테스트 탭 날짜 필터 적용, 화법별 응시 현황 날짜범위 표시, 미응시 화법 명확히 표시" },
   { ver: "v1.39", date: "2026.05.21", desc: "테스트 0점 저장 수정(연습만 10점 필터), 개인 테스트 기록 탭·요약 추가, 관리자 패널 실제 응시 화법 표시" },
@@ -964,6 +965,9 @@ export default function App() {
   const [editSaved, setEditSaved] = useState(false);
   const [masterList, setMasterList] = useState([]); // 고객컨설팅마스터과정 교육생
   const [masterOnly, setMasterOnly] = useState(false);
+  const [scoreEditMin, setScoreEditMin] = useState(61);
+  const [scoreEditMax, setScoreEditMax] = useState(95);
+  const [scoreEditMsg, setScoreEditMsg] = useState("");
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showContinueModal, setShowContinueModal] = useState(false);
   const [showNoRecords, setShowNoRecords] = useState(false);
@@ -1272,6 +1276,22 @@ export default function App() {
   };
   const adminDeleteAll = async () => {
     try { await initDB(); await getDB().save([]); } catch {} setHistory([]); setAdminSelected(new Set());
+  };
+  const adminRandomizeScores = async () => {
+    const min = parseInt(scoreEditMin) || 61;
+    const max = parseInt(scoreEditMax) || 95;
+    if (min > max) { setScoreEditMsg("최솟값이 최댓값보다 클 수 없습니다."); return; }
+    const getD = s => { if (!s) return ""; const m = s.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})/); return m ? `${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}` : ""; };
+    const inRange = h => { const d = getD(h.date); if (!d) return false; if (afDateFrom && d < afDateFrom) return false; if (afDateTo && d > afDateTo) return false; return true; };
+    const updated = history.map(h => {
+      if (!inRange(h)) return h;
+      const newScore = Math.floor(Math.random() * (max - min + 1)) + min;
+      return { ...h, score: newScore, passed: newScore >= 60 };
+    });
+    const count = updated.filter((h, i) => h.score !== history[i].score).length;
+    try { await initDB(); await getDB().save(updated); } catch (e) { setScoreEditMsg("저장 실패: " + e.message); return; }
+    setHistory(updated);
+    setScoreEditMsg(`✅ ${count}건 점수 수정 완료 (${min}~${max}점 랜덤)`);
   };
 
   // 내 기록만
@@ -2235,6 +2255,22 @@ export default function App() {
               <button onClick={adminDeleteAll} style={{ padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 10, color: "#EF4444", fontSize: 12, cursor: "pointer" }}>전체삭제</button>
             </div>
           )}
+          {/* 점수 랜덤 수정 */}
+          <div style={{ ...S.card, padding: "10px 14px", marginBottom: 10, background: "#FFFBEB", border: "1px solid #FDE68A" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#92400E", marginBottom: 8 }}>🎲 필터 기간 점수 랜덤 수정</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: "#666", whiteSpace: "nowrap" }}>점수 범위</div>
+              <input type="number" value={scoreEditMin} onChange={e => { setScoreEditMin(e.target.value); setScoreEditMsg(""); }} min={0} max={100}
+                style={{ width: 54, padding: "4px 6px", border: "1px solid #FDE68A", borderRadius: 6, fontSize: 12, textAlign: "center", outline: "none" }} />
+              <div style={{ fontSize: 11, color: "#999" }}>~</div>
+              <input type="number" value={scoreEditMax} onChange={e => { setScoreEditMax(e.target.value); setScoreEditMsg(""); }} min={0} max={100}
+                style={{ width: 54, padding: "4px 6px", border: "1px solid #FDE68A", borderRadius: 6, fontSize: 12, textAlign: "center", outline: "none" }} />
+              <div style={{ fontSize: 11, color: "#999" }}>점</div>
+              <button onClick={() => { if (window.confirm(`날짜 필터(${afDateFrom} ~ ${afDateTo}) 범위의 기록 ${afList.length}건 점수를 ${scoreEditMin}~${scoreEditMax}점으로 랜덤 수정할까요?`)) adminRandomizeScores(); }}
+                style={{ flex: 1, padding: "6px 10px", background: "#F59E0B", border: "none", borderRadius: 8, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>수정 적용</button>
+            </div>
+            {scoreEditMsg && <div style={{ fontSize: 11, color: scoreEditMsg.startsWith("✅") ? "#059669" : "#EF4444" }}>{scoreEditMsg}</div>}
+          </div>
           <div style={{ fontSize: 11, color: "#999", marginBottom: 8 }}>총 {afList.length}건</div>
           <input value={afSearch} onChange={e => setAfSearch(e.target.value)} placeholder="🔍 이름, 지점, 화법 검색..."
             style={{ width: "100%", padding: "8px 12px", background: "#fff", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 12, outline: "none", boxSizing: "border-box", marginBottom: 8 }} />
