@@ -317,6 +317,7 @@ ORG_RAW.trim().split("\n").forEach(line => {
 
 // ─── 버전 변경이력 ───
 const CHANGELOG = [
+  { ver: "v1.43", date: "2026.05.21", desc: "관리자 비전센터 복수 선택(칩 토글), 점수 랜덤 수정을 테스트 탭으로 이동" },
   { ver: "v1.42", date: "2026.05.21", desc: "관리자 기록 탭 점수 랜덤 수정 기능 추가 (날짜 필터 범위 내 점수 일괄 랜덤 변경)" },
   { ver: "v1.41", date: "2026.05.21", desc: "Android 녹음 무음 후 재시작 버그 수정: 200ms 딜레이, no-speech/aborted 에러 무시 후 onend에서 재시작" },
   { ver: "v1.40", date: "2026.05.21", desc: "관리자 테스트 탭 날짜 필터 적용, 화법별 응시 현황 날짜범위 표시, 미응시 화법 명확히 표시" },
@@ -948,7 +949,7 @@ export default function App() {
   const [passPackKeys, setPassPackKeys] = useState(Object.keys(PACKS)); // 수료 평가 대상 화법
   const [passMinScore, setPassMinScore] = useState(50); // 수료 기준 점수 // 교육생 통째 선택
   const [afRegion, setAfRegion] = useState("");
-  const [afCenter, setAfCenter] = useState("");
+  const [afCenters, setAfCenters] = useState(new Set()); // 복수 선택
   const [afBranch, setAfBranch] = useState("");
   const [afScoreMin, setAfScoreMin] = useState("");
   const [afSearch, setAfSearch] = useState("");
@@ -2137,7 +2138,7 @@ export default function App() {
     };
     const afList = history.filter(h => {
       if (afRegion && h.region !== afRegion) return false;
-      if (afCenter && h.center !== afCenter) return false;
+      if (afCenters.size > 0 && !afCenters.has(h.center)) return false;
       if (afBranch && h.branch !== afBranch) return false;
       if (!scoreMatch(h.score)) return false;
       if (!timeMatch(h.date, afTimeFrom, afTimeTo)) return false;
@@ -2153,7 +2154,7 @@ export default function App() {
 
     const stFiltered = history.filter(h => {
       if (afRegion && h.region !== afRegion) return false;
-      if (afCenter && h.center !== afCenter) return false;
+      if (afCenters.size > 0 && !afCenters.has(h.center)) return false;
       if (afBranch && h.branch !== afBranch) return false;
       if (stPerson && h.name !== stPerson) return false;
       if (masterOnly && !masterList.includes(h.name)) return false;
@@ -2207,15 +2208,29 @@ export default function App() {
           {/* ───── 공통 필터 ───── */}
           {adminTab !== "edit" && <div style={{ ...S.card, padding: "10px 12px", marginBottom: 6 }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
-              <select value={afRegion} onChange={e => { setAfRegion(e.target.value); setAfCenter(""); setAfBranch(""); setStPerson(""); }} style={{ padding: "6px 10px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }}>
+              <select value={afRegion} onChange={e => { setAfRegion(e.target.value); setAfCenters(new Set()); setAfBranch(""); setStPerson(""); }} style={{ padding: "6px 10px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }}>
                 <option value="">전체 지역단</option>{Object.keys(ORG).map(r => <option key={r} value={r}>{r}</option>)}
               </select>
-              {afRegion && <select value={afCenter} onChange={e => { setAfCenter(e.target.value); setAfBranch(""); setStPerson(""); }} style={{ padding: "6px 10px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }}>
-                <option value="">전체 센터</option>{(ORG[afRegion] ? Object.keys(ORG[afRegion]) : []).map(c => <option key={c} value={c}>{c}</option>)}
-              </select>}
-              {afCenter && <select value={afBranch} onChange={e => { setAfBranch(e.target.value); setStPerson(""); }} style={{ padding: "6px 10px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }}>
-                <option value="">전체 지점</option>{((afRegion && ORG[afRegion]?.[afCenter]) || []).map(b => <option key={b} value={b}>{b}</option>)}
-              </select>}
+              {afRegion && (() => {
+                const centers = ORG[afRegion] ? Object.keys(ORG[afRegion]) : [];
+                const singleCenter = afCenters.size === 1 ? [...afCenters][0] : null;
+                const branchOptions = singleCenter ? (ORG[afRegion]?.[singleCenter] || []) : [];
+                return (<>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {centers.map(c => { const sel = afCenters.has(c); return (
+                      <button key={c} onClick={() => { const n = new Set(afCenters); if (n.has(c)) n.delete(c); else n.add(c); setAfCenters(n); setAfBranch(""); setStPerson(""); }}
+                        style={{ padding: "4px 8px", borderRadius: 12, border: `1px solid ${sel ? "#F97316" : "#e5e5e5"}`, cursor: "pointer", fontSize: 11, fontWeight: sel ? 700 : 400, background: sel ? "#F97316" : "#fff", color: sel ? "#fff" : "#666", whiteSpace: "nowrap" }}>
+                        {c}
+                      </button>
+                    ); })}
+                  </div>
+                  {singleCenter && branchOptions.length > 0 && (
+                    <select value={afBranch} onChange={e => { setAfBranch(e.target.value); setStPerson(""); }} style={{ padding: "6px 10px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none" }}>
+                      <option value="">전체 지점</option>{branchOptions.map(b => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                  )}
+                </>);
+              })()}
             </div>
             {adminTab === "records" && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
@@ -2235,7 +2250,7 @@ export default function App() {
               <input value={afTimeFrom} onChange={e => setAfTimeFrom(e.target.value.replace(/[^0-9:]/g,"").slice(0,5))} placeholder="00:00" maxLength={5} style={{ padding: "4px 8px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none", width: 50, textAlign: "center" }} />
               <span style={{ fontSize: 11, color: "#999" }}>~</span>
               <input value={afTimeTo} onChange={e => setAfTimeTo(e.target.value.replace(/[^0-9:]/g,"").slice(0,5))} placeholder="23:59" maxLength={5} style={{ padding: "4px 8px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none", width: 50, textAlign: "center" }} />
-              <button onClick={() => { const n = new Date(); const y = n.getFullYear(); const m = String(n.getMonth()+1).padStart(2,"0"); const ld = new Date(y, n.getMonth()+1, 0).getDate(); setAfTimeFrom(""); setAfTimeTo(""); setAfDateFrom(`${y}-${m}-01`); setAfDateTo(`${y}-${m}-${String(ld).padStart(2,"0")}`); }} style={{ padding: "4px 8px", background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 8, color: "#999", fontSize: 10, cursor: "pointer" }}>초기화</button>
+              <button onClick={() => { const n = new Date(); const y = n.getFullYear(); const m = String(n.getMonth()+1).padStart(2,"0"); const ld = new Date(y, n.getMonth()+1, 0).getDate(); setAfTimeFrom(""); setAfTimeTo(""); setAfDateFrom(`${y}-${m}-01`); setAfDateTo(`${y}-${m}-${String(ld).padStart(2,"0")}`); setAfCenters(new Set()); setAfBranch(""); }} style={{ padding: "4px 8px", background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 8, color: "#999", fontSize: 10, cursor: "pointer" }}>초기화</button>
               <button onClick={() => loadHistory()} style={{ padding: "4px 12px", background: "#F97316", border: "none", borderRadius: 8, color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>🔍 필터 적용</button>
             </div>
           </div>}
@@ -2255,22 +2270,6 @@ export default function App() {
               <button onClick={adminDeleteAll} style={{ padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 10, color: "#EF4444", fontSize: 12, cursor: "pointer" }}>전체삭제</button>
             </div>
           )}
-          {/* 점수 랜덤 수정 */}
-          <div style={{ ...S.card, padding: "10px 14px", marginBottom: 10, background: "#FFFBEB", border: "1px solid #FDE68A" }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#92400E", marginBottom: 8 }}>🎲 필터 기간 점수 랜덤 수정</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-              <div style={{ fontSize: 11, color: "#666", whiteSpace: "nowrap" }}>점수 범위</div>
-              <input type="number" value={scoreEditMin} onChange={e => { setScoreEditMin(e.target.value); setScoreEditMsg(""); }} min={0} max={100}
-                style={{ width: 54, padding: "4px 6px", border: "1px solid #FDE68A", borderRadius: 6, fontSize: 12, textAlign: "center", outline: "none" }} />
-              <div style={{ fontSize: 11, color: "#999" }}>~</div>
-              <input type="number" value={scoreEditMax} onChange={e => { setScoreEditMax(e.target.value); setScoreEditMsg(""); }} min={0} max={100}
-                style={{ width: 54, padding: "4px 6px", border: "1px solid #FDE68A", borderRadius: 6, fontSize: 12, textAlign: "center", outline: "none" }} />
-              <div style={{ fontSize: 11, color: "#999" }}>점</div>
-              <button onClick={() => { if (window.confirm(`날짜 필터(${afDateFrom} ~ ${afDateTo}) 범위의 기록 ${afList.length}건 점수를 ${scoreEditMin}~${scoreEditMax}점으로 랜덤 수정할까요?`)) adminRandomizeScores(); }}
-                style={{ flex: 1, padding: "6px 10px", background: "#F59E0B", border: "none", borderRadius: 8, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>수정 적용</button>
-            </div>
-            {scoreEditMsg && <div style={{ fontSize: 11, color: scoreEditMsg.startsWith("✅") ? "#059669" : "#EF4444" }}>{scoreEditMsg}</div>}
-          </div>
           <div style={{ fontSize: 11, color: "#999", marginBottom: 8 }}>총 {afList.length}건</div>
           <input value={afSearch} onChange={e => setAfSearch(e.target.value)} placeholder="🔍 이름, 지점, 화법 검색..."
             style={{ width: "100%", padding: "8px 12px", background: "#fff", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 12, outline: "none", boxSizing: "border-box", marginBottom: 8 }} />
@@ -2461,7 +2460,7 @@ export default function App() {
           const testMap = {};
           testRecords.forEach(h => {
             if (afRegion && h.region !== afRegion) return;
-            if (afCenter && h.center !== afCenter) return;
+            if (afCenters.size > 0 && !afCenters.has(h.center)) return;
             if (afBranch && h.branch !== afBranch) return;
             if (tfSearch && !(h.name||"").includes(tfSearch)) return;
             const uid = h.name+"_"+(h.empId||"");
@@ -2540,6 +2539,23 @@ export default function App() {
           };
 
           return (<>
+            {/* 점수 랜덤 수정 */}
+            <div style={{ ...S.card, padding: "10px 14px", marginBottom: 8, background: "#FFFBEB", border: "1px solid #FDE68A" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#92400E", marginBottom: 8 }}>🎲 필터 기간 점수 랜덤 수정</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 11, color: "#666", whiteSpace: "nowrap" }}>점수 범위</div>
+                <input type="number" value={scoreEditMin} onChange={e => { setScoreEditMin(e.target.value); setScoreEditMsg(""); }} min={0} max={100}
+                  style={{ width: 54, padding: "4px 6px", border: "1px solid #FDE68A", borderRadius: 6, fontSize: 12, textAlign: "center", outline: "none" }} />
+                <div style={{ fontSize: 11, color: "#999" }}>~</div>
+                <input type="number" value={scoreEditMax} onChange={e => { setScoreEditMax(e.target.value); setScoreEditMsg(""); }} min={0} max={100}
+                  style={{ width: 54, padding: "4px 6px", border: "1px solid #FDE68A", borderRadius: 6, fontSize: 12, textAlign: "center", outline: "none" }} />
+                <div style={{ fontSize: 11, color: "#999" }}>점</div>
+                <button onClick={() => { if (window.confirm(`날짜 필터(${afDateFrom} ~ ${afDateTo}) 범위의 테스트 기록 점수를 ${scoreEditMin}~${scoreEditMax}점으로 랜덤 수정할까요?`)) adminRandomizeScores(); }}
+                  style={{ flex: 1, padding: "6px 10px", background: "#F59E0B", border: "none", borderRadius: 8, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>수정 적용</button>
+              </div>
+              {scoreEditMsg && <div style={{ fontSize: 11, color: scoreEditMsg.startsWith("✅") ? "#059669" : "#EF4444" }}>{scoreEditMsg}</div>}
+            </div>
+
             <div style={{ ...S.card, padding: "10px 12px", marginBottom: 8 }}>
               <input value={tfSearch} onChange={e => setTfSearch(e.target.value)} placeholder="🔍 교육생 이름 검색..." style={{ width: "100%", padding: "6px 10px", background: "#fff", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none", boxSizing: "border-box" }} />
             </div>
