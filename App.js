@@ -317,6 +317,7 @@ ORG_RAW.trim().split("\n").forEach(line => {
 
 // ─── 버전 변경이력 ───
 const CHANGELOG = [
+  { ver: "v1.41", date: "2026.05.21", desc: "Android 녹음 무음 후 재시작 버그 수정: 200ms 딜레이, no-speech/aborted 에러 무시 후 onend에서 재시작" },
   { ver: "v1.40", date: "2026.05.21", desc: "관리자 테스트 탭 날짜 필터 적용, 화법별 응시 현황 날짜범위 표시, 미응시 화법 명확히 표시" },
   { ver: "v1.39", date: "2026.05.21", desc: "테스트 0점 저장 수정(연습만 10점 필터), 개인 테스트 기록 탭·요약 추가, 관리자 패널 실제 응시 화법 표시" },
   { ver: "v1.38", date: "2026.05.21", desc: "관리자 필터 적용 버튼 추가(Firebase 재조회), 테스트 탭 화법별 현황 선택된 화법만 표시" },
@@ -1147,17 +1148,16 @@ export default function App() {
     try {
       const r = new SR(); r.lang = "ko-KR"; r.continuous = true; r.interimResults = true;
       let finalText = "";
-      let lastFinalIdx = -1; // Android 재시작 시 중복 방지
+      let lastFinalIdx = -1;
+      let restartPending = false; // Android 연속 재시작 방지
 
       r.onresult = e => {
         let interim = "";
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const t = e.results[i][0].transcript.trim();
           if (e.results[i].isFinal) {
-            // 이미 처리한 인덱스 스킵 (Android 재시작 중복 방지)
             if (i <= lastFinalIdx) continue;
             lastFinalIdx = i;
-            // 직전 finalText 끝과 동일하면 중복 스킵
             if (t && !finalText.trimEnd().endsWith(t)) {
               finalText += t + " ";
             }
@@ -1169,14 +1169,26 @@ export default function App() {
         setTranscript(finalText + interim);
       };
       r.onerror = e => {
+        // 마이크 권한 오류만 중단 처리, 나머지(no-speech/network/aborted)는 onend에서 재시작
         if (e.error === "not-allowed" || e.error === "audio-capture") {
           setError("마이크 사용이 차단되었습니다. 브라우저 설정에서 마이크를 허용해주세요.");
+          recRef.current = null;
           setIsRec(false); setMode("text");
           if (timerRef.current) clearInterval(timerRef.current);
         }
       };
       r.onend = () => {
-        if (recRef.current === r) { try { r.start(); } catch {} }
+        // Android: onend가 무음 후 자동으로 발사됨 → 200ms 딜레이 후 재시작
+        if (recRef.current === r && !restartPending) {
+          restartPending = true;
+          setTimeout(() => {
+            restartPending = false;
+            if (recRef.current === r) {
+              lastFinalIdx = -1; // 새 세션의 resultIndex 리셋에 대비
+              try { r.start(); } catch {}
+            }
+          }, 200);
+        }
       };
       recRef.current = r;
       r.start();
