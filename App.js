@@ -317,6 +317,7 @@ ORG_RAW.trim().split("\n").forEach(line => {
 
 // ─── 버전 변경이력 ───
 const CHANGELOG = [
+  { ver: "v1.38", date: "2026.05.21", desc: "관리자 필터 적용 버튼 추가(Firebase 재조회), 테스트 탭 화법별 현황 선택된 화법만 표시" },
   { ver: "v1.37", date: "2026.05.19", desc: "치료년수 팝업 버튼 선택, 전/후 컬럼명을 기존계약/신규제안으로 변경, 출력 합계행에 기존계약·신규제안 합계 추가" },
   { ver: "v1.36", date: "2026.05.19", desc: "출력 팝업: 주요치료비 합산 내역 포함, 사진저장 여백 제거(본문만 캡처), 닫기 버튼 추가" },
   { ver: "v1.35", date: "2026.05.19", desc: "출력/저장 모달에 지역단·비전센터·지점·성명 선택 추가, 담당자 기기 1일 기억, 불러오기 담당자 이름 검색으로 변경" },
@@ -2196,6 +2197,7 @@ export default function App() {
               <span style={{ fontSize: 11, color: "#999" }}>~</span>
               <input value={afTimeTo} onChange={e => setAfTimeTo(e.target.value.replace(/[^0-9:]/g,"").slice(0,5))} placeholder="23:59" maxLength={5} style={{ padding: "4px 8px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 11, outline: "none", width: 50, textAlign: "center" }} />
               <button onClick={() => { const n = new Date(); const y = n.getFullYear(); const m = String(n.getMonth()+1).padStart(2,"0"); const ld = new Date(y, n.getMonth()+1, 0).getDate(); setAfTimeFrom(""); setAfTimeTo(""); setAfDateFrom(`${y}-${m}-01`); setAfDateTo(`${y}-${m}-${String(ld).padStart(2,"0")}`); }} style={{ padding: "4px 8px", background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 8, color: "#999", fontSize: 10, cursor: "pointer" }}>초기화</button>
+              <button onClick={() => loadHistory()} style={{ padding: "4px 12px", background: "#F97316", border: "none", borderRadius: 8, color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>🔍 필터 적용</button>
             </div>
           </div>}
         </div>
@@ -2429,7 +2431,7 @@ export default function App() {
           const selAllU = () => { if (testUserSel.size === showUsers.length) setTestUserSel(new Set()); else setTestUserSel(new Set(showUsers.map(u => u.name))); };
 
           const avgAll = testUsers.length ? Math.round(testUsers.reduce((s,u) => s+u.avgTopN, 0)/testUsers.length) : 0;
-          const pkStats = packTitles.map(pt => { const scores = Object.values(testMap).map(u => u.packs[pt]||0).filter(s=>s>0); return { title: pt, tested: scores.length, avg: scores.length ? Math.round(scores.reduce((s,v)=>s+v,0)/scores.length) : 0 }; });
+          const pkStats = packTitles.filter(pt => passPackKeys.some(k => PACKS[k]?.title === pt)).map(pt => { const scores = Object.values(testMap).map(u => u.packs[pt]||0).filter(s=>s>0); return { title: pt, tested: scores.length, avg: scores.length ? Math.round(scores.reduce((s,v)=>s+v,0)/scores.length) : 0 }; });
 
           const renderU = (u, i, rank) => {
             const op = expandedId === "test_"+u.name;
@@ -2440,7 +2442,7 @@ export default function App() {
                   {rank && <div style={{ width: 18, fontSize: 11, fontWeight: 700, color: i < 3 ? "#F97316" : "#ccc", textAlign: "center" }}>{i+1}</div>}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: "#333" }}>{u.name} <span style={{ color: "#bbb", fontWeight: 400 }}>· {u.branch}</span></div>
-                    <div style={{ fontSize: 9, color: "#999", marginTop: 1 }}>{packTitles.map(pt => { const sc = u.packs[pt]; return sc != null ? <span key={pt} style={{ marginRight: 4, color: sc >= passMinScore ? "#10B981" : "#EF4444" }}>{pt.slice(0,3)}:{sc}</span> : null; })}</div>
+                    <div style={{ fontSize: 9, color: "#999", marginTop: 1 }}>{packTitles.filter(pt => passPackKeys.some(k => PACKS[k]?.title === pt)).map(pt => { const sc = u.packs[pt]; return sc != null ? <span key={pt} style={{ marginRight: 4, color: sc >= passMinScore ? "#10B981" : "#EF4444" }}>{pt.slice(0,3)}:{sc}</span> : null; })}</div>
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 800, color: u.passed ? "#10B981" : "#EF4444", marginRight: 2 }}>{u.avgTopN}점</div>
                   <div style={{ fontSize: 9, color: u.passed ? "#10B981" : "#EF4444", fontWeight: 700, padding: "2px 5px", background: u.passed ? "#ECFDF5" : "#FEF2F2", borderRadius: 4 }}>{u.passed ? "수료" : "미수료"}</div>
@@ -2453,7 +2455,7 @@ export default function App() {
                       {u.autoPass && <span style={{ fontSize: 9, color: "#10B981", padding: "4px 0" }}>✅ 자동수료</span>}
                     </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 6 }}>
-                      {packTitles.map(pt => { const sc = u.packs[pt]; const tgt = passPackTitles.includes(pt); return <div key={pt} style={{ padding: "3px 6px", background: sc != null ? (sc >= passMinScore ? "#ECFDF5" : "#FEF2F2") : "#f9f9f9", border: `1px solid ${sc != null ? (sc >= passMinScore ? "#A7F3D0" : "#FECACA") : "#eee"}`, borderRadius: 4, fontSize: 9 }}>
+                      {packTitles.filter(pt => passPackKeys.some(k => PACKS[k]?.title === pt)).map(pt => { const sc = u.packs[pt]; const tgt = passPackTitles.includes(pt); return <div key={pt} style={{ padding: "3px 6px", background: sc != null ? (sc >= passMinScore ? "#ECFDF5" : "#FEF2F2") : "#f9f9f9", border: `1px solid ${sc != null ? (sc >= passMinScore ? "#A7F3D0" : "#FECACA") : "#eee"}`, borderRadius: 4, fontSize: 9 }}>
                         <span style={{ color: "#666" }}>{pt.slice(0,5)}</span> <span style={{ fontWeight: 700, color: sc != null ? (sc >= passMinScore ? "#10B981" : "#EF4444") : "#ccc" }}>{sc != null ? sc+"점" : "미응시"}</span>{tgt && <span style={{ color: "#F97316", marginLeft: 1 }}>★</span>}
                       </div>; })}
                     </div>
