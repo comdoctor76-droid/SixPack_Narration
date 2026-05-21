@@ -317,6 +317,7 @@ ORG_RAW.trim().split("\n").forEach(line => {
 
 // ─── 버전 변경이력 ───
 const CHANGELOG = [
+  { ver: "v1.40", date: "2026.05.21", desc: "관리자 테스트 탭 날짜 필터 적용, 화법별 응시 현황 날짜범위 표시, 미응시 화법 명확히 표시" },
   { ver: "v1.39", date: "2026.05.21", desc: "테스트 0점 저장 수정(연습만 10점 필터), 개인 테스트 기록 탭·요약 추가, 관리자 패널 실제 응시 화법 표시" },
   { ver: "v1.38", date: "2026.05.21", desc: "관리자 필터 적용 버튼 추가(Firebase 재조회), 테스트 탭 화법별 현황 선택된 화법만 표시" },
   { ver: "v1.37", date: "2026.05.19", desc: "치료년수 팝업 버튼 선택, 전/후 컬럼명을 기존계약/신규제안으로 변경, 출력 합계행에 기존계약·신규제안 합계 추가" },
@@ -2397,7 +2398,12 @@ export default function App() {
 
         {/* ───── 테스트 결과 탭 ───── */}
         {adminTab === "testResults" && (() => {
-          const testRecords = history.filter(h => h.isTest);
+          const testRecords = history.filter(h => {
+            if (!h.isTest) return false;
+            if (!dateMatch(h.date, afDateFrom, afDateTo)) return false;
+            if (!timeMatch(h.date, afTimeFrom, afTimeTo)) return false;
+            return true;
+          });
           const packEntries = Object.entries(PACKS);
           const packTitles = packEntries.map(([,p]) => p.title);
           const passPacks = packEntries.filter(([k]) => passPackKeys.includes(k));
@@ -2514,14 +2520,18 @@ export default function App() {
             </div>
 
             <div style={{ ...S.card, padding: "10px 12px", marginBottom: 8 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#222", marginBottom: 6 }}>📊 화법별 테스트 현황</div>
-              {pkStats.map(ps => (
-                <div key={ps.title} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                  <div style={{ flex: 1, fontSize: 10, color: "#555" }}>{ps.title}</div>
-                  <div style={{ fontSize: 10, color: "#999" }}>{ps.tested}명</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: ps.avg >= passMinScore ? "#10B981" : "#EF4444" }}>평균{ps.avg}점</div>
-                </div>
-              ))}
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#222", marginBottom: 6 }}>📊 화법별 테스트 현황 <span style={{ fontWeight: 400, color: "#aaa", fontSize: 10 }}>({afDateFrom}~{afDateTo})</span></div>
+              {packEntries.filter(([k]) => passPackKeys.includes(k)).map(([k, p]) => {
+                const ps = pkStats.find(s => s.title === p.title) || { tested: 0, avg: 0 };
+                return (
+                  <div key={k} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                    <div style={{ fontSize: 10, color: "#999", width: 14 }}>{p.icon}</div>
+                    <div style={{ flex: 1, fontSize: 10, color: "#555" }}>{p.title}</div>
+                    <div style={{ fontSize: 10, color: ps.tested > 0 ? "#555" : "#ccc" }}>{ps.tested > 0 ? `${ps.tested}명 응시` : "미응시"}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: ps.tested === 0 ? "#ccc" : ps.avg >= passMinScore ? "#10B981" : "#EF4444" }}>{ps.tested > 0 ? `평균${ps.avg}점` : "-"}</div>
+                  </div>
+                );
+              })}
               <div style={{ marginTop: 4, padding: "5px 8px", background: "#f9f9f9", borderRadius: 6, display: "flex", justifyContent: "space-between", fontSize: 10 }}>
                 <span>전체평균 <b style={{ color: "#F97316" }}>{avgAll}점</b></span>
                 <span>수료율 <b style={{ color: "#10B981" }}>{testUsers.length ? Math.round(completed.length/testUsers.length*100) : 0}%</b></span>
