@@ -317,6 +317,7 @@ ORG_RAW.trim().split("\n").forEach(line => {
 
 // ─── 버전 변경이력 ───
 const CHANGELOG = [
+  { ver: "v1.39", date: "2026.05.21", desc: "테스트 0점 저장 수정(연습만 10점 필터), 개인 테스트 기록 탭·요약 추가, 관리자 패널 실제 응시 화법 표시" },
   { ver: "v1.38", date: "2026.05.21", desc: "관리자 필터 적용 버튼 추가(Firebase 재조회), 테스트 탭 화법별 현황 선택된 화법만 표시" },
   { ver: "v1.37", date: "2026.05.19", desc: "치료년수 팝업 버튼 선택, 전/후 컬럼명을 기존계약/신규제안으로 변경, 출력 합계행에 기존계약·신규제안 합계 추가" },
   { ver: "v1.36", date: "2026.05.19", desc: "출력 팝업: 주요치료비 합산 내역 포함, 사진저장 여백 제거(본문만 캡처), 닫기 버튼 추가" },
@@ -989,6 +990,7 @@ export default function App() {
   const wakeLockRef = useRef(null);
   const [pendingEvalText, setPendingEvalText] = useState("");
   const [testMode, setTestMode] = useState(false); // true=테스트, false=연습
+  const [historyView, setHistoryView] = useState("practice"); // "practice" | "test"
   const recRef = useRef(null);
   const timerRef = useRef(null);
   const tRef = useRef("");
@@ -1088,7 +1090,7 @@ export default function App() {
 
 
   const saveScore = async (score, passed, total, details, spokenText, packTitle, pageIdx) => {
-    if (score < 10) return; // 10점 미만 저장하지 않음
+    if (!testMode && score < 10) return; // 연습 모드만 10점 미만 필터 (테스트는 0점도 저장)
     await initDB();
     let all = [];
     try { all = await getDB().load() || []; } catch {}
@@ -2038,6 +2040,10 @@ export default function App() {
               ))}
             </div>
           </div>
+          {/* 내 테스트 기록 보기 */}
+          <button onClick={() => { loadHistory(); setHistoryView("test"); navigate("history"); }} style={{ width: "100%", marginTop: 10, padding: 12, background: "#FFF7ED", border: "2px solid #FDBA74", borderRadius: 12, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#EA580C" }}>
+            📊 내 테스트 기록 보기
+          </button>
           <div style={{ marginTop: 16 }}><HomeBtn /></div>
         </div>
       </div>
@@ -2442,9 +2448,11 @@ export default function App() {
                   {rank && <div style={{ width: 18, fontSize: 11, fontWeight: 700, color: i < 3 ? "#F97316" : "#ccc", textAlign: "center" }}>{i+1}</div>}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: "#333" }}>{u.name} <span style={{ color: "#bbb", fontWeight: 400 }}>· {u.branch}</span></div>
-                    <div style={{ fontSize: 9, color: "#999", marginTop: 1 }}>{packTitles.filter(pt => passPackKeys.some(k => PACKS[k]?.title === pt)).map(pt => { const sc = u.packs[pt]; return sc != null ? <span key={pt} style={{ marginRight: 4, color: sc >= passMinScore ? "#10B981" : "#EF4444" }}>{pt.slice(0,3)}:{sc}</span> : null; })}</div>
+                    <div style={{ fontSize: 9, color: "#999", marginTop: 1 }}>
+                      {Object.entries(u.packs).map(([pt, sc]) => { const isPass = passPackTitles.includes(pt); return <span key={pt} style={{ marginRight: 4, color: sc >= passMinScore ? "#10B981" : "#aaa" }}>{pt.slice(0,3)}:{sc}{isPass ? "★" : ""}</span>; })}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: u.passed ? "#10B981" : "#EF4444", marginRight: 2 }}>{u.avgTopN}점</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: u.avgTopN > 0 ? (u.passed ? "#10B981" : "#EF4444") : "#bbb", marginRight: 2 }}>{u.avgTopN > 0 ? u.avgTopN+"점" : "미응시"}</div>
                   <div style={{ fontSize: 9, color: u.passed ? "#10B981" : "#EF4444", fontWeight: 700, padding: "2px 5px", background: u.passed ? "#ECFDF5" : "#FEF2F2", borderRadius: 4 }}>{u.passed ? "수료" : "미수료"}</div>
                   <div style={{ fontSize: 9, color: "#ccc" }}>{op ? "▲" : "▼"}</div>
                 </div>
@@ -2620,14 +2628,37 @@ export default function App() {
 
   // ═══════════ HISTORY (개인) ═══════════
   if (page === "history") {
-    const showList = userName ? (testMode ? myHistory.filter(h => h.isTest) : myHistory.filter(h => !h.isTest)) : [];
+    const showList = userName ? (historyView === "test" ? myHistory.filter(h => h.isTest) : myHistory.filter(h => !h.isTest)) : [];
+    const testBest = {}; // 테스트 모드: 화법별 최고 점수
+    if (historyView === "test") {
+      myHistory.filter(h => h.isTest).forEach(h => { if (!testBest[h.pack] || h.score > testBest[h.pack].score) testBest[h.pack] = h; });
+    }
     return (
       <div style={S.root}><div style={S.wrap}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
           <button onClick={goBack} style={S.backBtn}>←</button>
-          <div style={{ fontSize: 20, fontWeight: 700, color: "#222", flex: 1 }}>{testMode ? "📝 내 테스트 기록" : "📝 내 기록"}</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#222", flex: 1 }}>📝 내 기록</div>
           <HomeBtn />
         </div>
+        {/* 탭 */}
+        <div style={{ display: "flex", gap: 4, marginBottom: 14, background: "#f5f5f5", borderRadius: 10, padding: 3 }}>
+          {[["practice","🔄 연습 기록"],["test","📝 테스트 기록"]].map(([id,label]) => (
+            <button key={id} onClick={() => setHistoryView(id)} style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: historyView === id ? "#fff" : "transparent", color: historyView === id ? "#222" : "#999", boxShadow: historyView === id ? "0 1px 4px #0001" : "none" }}>{label}</button>
+          ))}
+        </div>
+        {/* 테스트 모드: 화법별 최고 점수 요약 */}
+        {historyView === "test" && Object.keys(testBest).length > 0 && (
+          <div style={{ background: "#FFF7ED", border: "1px solid #FDBA74", borderRadius: 10, padding: "10px 12px", marginBottom: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#EA580C", marginBottom: 8 }}>🏆 화법별 최고 점수</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {Object.entries(testBest).map(([pack, h]) => (
+                <div key={pack} style={{ padding: "4px 10px", background: "#fff", border: `1px solid ${h.score >= 60 ? "#A7F3D0" : "#FECACA"}`, borderRadius: 8, fontSize: 11 }}>
+                  <span style={{ color: "#666" }}>{pack}</span> <b style={{ color: h.score >= 60 ? "#10B981" : "#EF4444" }}>{h.score}점</b>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {!userName ? (
           <div style={{ textAlign: "center", padding: 40 }}><div style={{ fontSize: 15, color: "#999" }}>소속을 먼저 입력해주세요</div></div>
         ) : showList.length === 0 ? (
@@ -2778,7 +2809,7 @@ export default function App() {
         )}
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => { if (results.isTest) { goTest(); } else { setShowContinueModal(true); } }} style={{ flex: 1, padding: 14, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>{results.isTest ? "📝 계속 테스트" : "🔄 계속 연습"}</button>
-          <button onClick={() => { loadHistory(); navigate("history"); }} style={{ flex: 1, padding: 14, background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, color: "#666", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>{results.isTest ? "📝 테스트 기록" : "📝 기록"}</button>
+          <button onClick={() => { loadHistory(); setHistoryView(results.isTest ? "test" : "practice"); navigate("history"); }} style={{ flex: 1, padding: 14, background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, color: "#666", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>{results.isTest ? "📝 테스트 기록" : "📝 기록"}</button>
         </div>
         <div style={{ marginTop: 12 }}><HomeBtn /></div>
 
