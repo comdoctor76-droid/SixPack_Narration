@@ -317,6 +317,7 @@ ORG_RAW.trim().split("\n").forEach(line => {
 
 // ─── 버전 변경이력 ───
 const CHANGELOG = [
+  { ver: "v1.44", date: "2026.05.28", desc: "출력모달 성명 선택: 하단시트 → 인라인 검색+드롭다운으로 변경 (직접입력 겸용)" },
   { ver: "v1.43", date: "2026.05.21", desc: "관리자 비전센터 복수 선택(칩 토글), 점수 랜덤 수정을 테스트 탭으로 이동" },
   { ver: "v1.42", date: "2026.05.21", desc: "관리자 기록 탭 점수 랜덤 수정 기능 추가 (날짜 필터 범위 내 점수 일괄 랜덤 변경)" },
   { ver: "v1.41", date: "2026.05.21", desc: "Android 녹음 무음 후 재시작 버그 수정: 200ms 딜레이, no-speech/aborted 에러 무시 후 onend에서 재시작" },
@@ -985,7 +986,7 @@ export default function App() {
   const [pCenter, setPCenter] = useState(() => { try { const s = JSON.parse(localStorage.getItem("sp_print_staff")||"{}"); return Date.now()-s.ts<86400000 ? s.center||"" : ""; } catch { return ""; } });
   const [pBranch, setPBranch] = useState(() => { try { const s = JSON.parse(localStorage.getItem("sp_print_staff")||"{}"); return Date.now()-s.ts<86400000 ? s.branch||"" : ""; } catch { return ""; } });
   const [pName, setPName] = useState(() => { try { const s = JSON.parse(localStorage.getItem("sp_print_staff")||"{}"); return Date.now()-s.ts<86400000 ? s.name||"" : ""; } catch { return ""; } });
-  const [pManualName, setPManualName] = useState(() => { try { const s = JSON.parse(localStorage.getItem("sp_print_staff")||"{}"); return Date.now()-s.ts<86400000 ? s.manualName||"" : ""; } catch { return ""; } });
+  const [pManualName] = useState(() => { try { const s = JSON.parse(localStorage.getItem("sp_print_staff")||"{}"); return Date.now()-s.ts<86400000 ? s.manualName||"" : ""; } catch { return ""; } });
   const [pClientName, setPClientName] = useState("");
   const [pNamePickerOpen, setPNamePickerOpen] = useState(false);
   const [pEmpSearch, setPEmpSearch] = useState("");
@@ -1936,7 +1937,7 @@ export default function App() {
                 return ALL_BRANCHES;
               })();
               const pEmpList = getEmpList(pBranch);
-              const pFinalName = pName === "__MANUAL__" ? pManualName.trim() : pName;
+              const pFinalName = pName === "__MANUAL__" ? pManualName.trim() : pName || pEmpSearch.trim();
               const pFilteredEmp = pEmpSearch ? pEmpList.filter(e => e.n.includes(pEmpSearch)) : pEmpList;
               const canAction = pBranch && pFinalName;
               const savePrintStaff = () => { try { localStorage.setItem("sp_print_staff", JSON.stringify({ region: pRegion, center: pCenter, branch: pBranch, name: pName, manualName: pManualName, ts: Date.now() })); } catch {} };
@@ -1944,20 +1945,37 @@ export default function App() {
                 <div style={S.overlay} onClick={() => setShowPrintModal(false)}>
                   <div style={{ ...S.modal, maxWidth: 380, maxHeight: "92vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
                     <div style={{ fontSize: 15, fontWeight: 800, color: "#222", marginBottom: 14, textAlign: "center" }}>🖨 출력 / 저장</div>
-                    <Select label="지역단" value={pRegion} onChange={v => { setPRegion(v); setPCenter(""); setPBranch(""); setPName(""); }} options={Object.keys(ORG)} placeholder="선택" />
-                    <Select label="비전센터" value={pCenter} onChange={v => { setPCenter(v); setPBranch(""); setPName(""); }} options={pCenters} placeholder="선택" disabled={!pRegion} />
-                    <Select label="지점" value={pBranch} onChange={v => { setPBranch(v); setPName(""); }} options={pBranchList} placeholder="선택" disabled={!pCenter} />
-                    <div style={{ marginBottom: 12 }}>
+                    <Select label="지역단" value={pRegion} onChange={v => { setPRegion(v); setPCenter(""); setPBranch(""); setPName(""); setPEmpSearch(""); }} options={Object.keys(ORG)} placeholder="선택" />
+                    <Select label="비전센터" value={pCenter} onChange={v => { setPCenter(v); setPBranch(""); setPName(""); setPEmpSearch(""); }} options={pCenters} placeholder="선택" disabled={!pRegion} />
+                    <Select label="지점" value={pBranch} onChange={v => { setPBranch(v); setPName(""); setPEmpSearch(""); }} options={pBranchList} placeholder="선택" disabled={!pCenter} />
+                    <div style={{ marginBottom: 12, position: "relative" }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: "#666", marginBottom: 5 }}>성명</div>
-                      <div onClick={() => { if (pBranch) { setPNamePickerOpen(true); setPEmpSearch(""); } }}
-                        style={{ padding: "12px 14px", background: "#fff", border: "1px solid #ddd", borderRadius: 10, fontSize: 14, color: pFinalName ? "#222" : "#999", cursor: pBranch ? "pointer" : "default" }}>
-                        {pFinalName || (pBranch ? "성명 선택" : "지점 먼저 선택")}
-                      </div>
+                      <input
+                        value={pEmpSearch}
+                        onChange={e => { setPEmpSearch(e.target.value); setPName(""); setPNamePickerOpen(true); }}
+                        onFocus={() => setPNamePickerOpen(true)}
+                        onBlur={() => setTimeout(() => setPNamePickerOpen(false), 200)}
+                        placeholder={pBranch ? "이름 입력 또는 검색" : "지점 먼저 선택"}
+                        disabled={!pBranch}
+                        style={{ width: "100%", padding: "12px 14px", border: "1px solid #ddd", borderRadius: 10, fontSize: 14, boxSizing: "border-box", color: "#222", background: pBranch ? "#fff" : "#f9f9f9", outline: "none" }}
+                      />
+                      {pNamePickerOpen && pBranch && (pFilteredEmp.length > 0 || pEmpSearch.trim()) && (
+                        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 400, background: "#fff", border: "1px solid #ddd", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.15)", maxHeight: 220, overflowY: "auto" }}>
+                          {pFilteredEmp.map(e => (
+                            <div key={e.n} onMouseDown={() => { setPName(e.n); setPEmpSearch(e.n); setPNamePickerOpen(false); }}
+                              style={{ padding: "10px 14px", fontSize: 13, cursor: "pointer", color: "#333", borderBottom: "1px solid #f5f5f5", background: pName === e.n ? "#FFF7ED" : "#fff" }}>
+                              {e.n}
+                            </div>
+                          ))}
+                          {pEmpSearch.trim() && !pFilteredEmp.some(e => e.n === pEmpSearch.trim()) && (
+                            <div onMouseDown={() => { setPName(pEmpSearch.trim()); setPNamePickerOpen(false); }}
+                              style={{ padding: "10px 14px", fontSize: 13, cursor: "pointer", color: "#F97316", fontWeight: 600 }}>
+                              "{pEmpSearch.trim()}" 직접 사용
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    {pName === "__MANUAL__" && (
-                      <input value={pManualName} onChange={e => setPManualName(e.target.value)} placeholder="이름 직접 입력"
-                        style={{ width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 8, fontSize: 13, marginBottom: 12, boxSizing: "border-box" }} />
-                    )}
                     <div style={{ marginBottom: 16 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: "#666", marginBottom: 5 }}>고객명</div>
                       <input value={pClientName} onChange={e => setPClientName(e.target.value)} placeholder="고객명 입력"
@@ -1970,24 +1988,6 @@ export default function App() {
                       <button onClick={() => { if (!canAction) return; savePrintStaff(); if (pClientName.trim()) setConsultClientName(pClientName); setShowPrintModal(false); printContent(pFinalName, pBranch, pClientName); }} disabled={!canAction}
                         style={{ flex: 1, padding: 11, background: canAction ? "linear-gradient(135deg,#F97316,#EA580C)" : "#ccc", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: canAction ? "pointer" : "default", color: "#fff" }}>🖨 출력</button>
                     </div>
-                    {/* 성명 피커 */}
-                    {pNamePickerOpen && (
-                      <div style={{ position: "fixed", inset: 0, background: "#0004", zIndex: 300, display: "flex", alignItems: "flex-end" }} onClick={() => setPNamePickerOpen(false)}>
-                        <div style={{ background: "#fff", borderRadius: "16px 16px 0 0", padding: 16, width: "100%", maxHeight: "60vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-                          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>{pBranch} 성명 선택</div>
-                          <input value={pEmpSearch} onChange={e => setPEmpSearch(e.target.value)} placeholder="이름 검색"
-                            style={{ width: "100%", padding: "8px 12px", border: "1px solid #ddd", borderRadius: 8, fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                            {pFilteredEmp.map(e => (
-                              <button key={e.n} onClick={() => { setPName(e.n); setPNamePickerOpen(false); }}
-                                style={{ padding: "7px 13px", background: pName===e.n?"#F97316":"#fff", border: `1px solid ${pName===e.n?"#F97316":"#e5e5e5"}`, borderRadius: 20, color: pName===e.n?"#fff":"#555", fontSize: 13, cursor: "pointer" }}>{e.n}</button>
-                            ))}
-                            <button onClick={() => { setPName("__MANUAL__"); setPNamePickerOpen(false); }}
-                              style={{ padding: "7px 13px", background: pName==="__MANUAL__"?"#F97316":"#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 20, color: pName==="__MANUAL__"?"#fff":"#888", fontSize: 13, cursor: "pointer" }}>직접입력</button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               );
