@@ -317,6 +317,7 @@ ORG_RAW.trim().split("\n").forEach(line => {
 
 // ─── 버전 변경이력 ───
 const CHANGELOG = [
+  { ver: "v1.45", date: "2026.05.28", desc: "출력 팝업 공유하기 버튼 개선: 안드로이드 카카오톡 등 공유시트 연동, 저장 버튼 분리" },
   { ver: "v1.44", date: "2026.05.28", desc: "출력모달 성명 선택: 하단시트 → 인라인 검색+드롭다운으로 변경 (직접입력 겸용)" },
   { ver: "v1.43", date: "2026.05.21", desc: "관리자 비전센터 복수 선택(칩 토글), 점수 랜덤 수정을 테스트 탭으로 이동" },
   { ver: "v1.42", date: "2026.05.21", desc: "관리자 기록 탭 점수 랜덤 수정 기능 추가 (날짜 필터 범위 내 점수 일괄 랜덤 변경)" },
@@ -1630,14 +1631,32 @@ export default function App() {
             canvas.toBlob(function(blob){
               var fileName='${titleText}_${consultClientName}.png';
               var file=new File([blob],fileName,{type:'image/png'});
-              if(navigator.canShare&&navigator.canShare({files:[file]})){
-                navigator.share({files:[file],title:'${titleText}',text:'${consultClientName} 보장 컨설팅'}).catch(function(){});
+              if(navigator.share){
+                navigator.share({files:[file],title:'${titleText}',text:'${consultClientName} 보장 컨설팅'}).catch(function(err){
+                  if(err.name!=='AbortError'){
+                    var url=URL.createObjectURL(blob);
+                    var a=document.createElement('a');
+                    a.href=url;a.download=fileName;a.click();
+                    setTimeout(function(){URL.revokeObjectURL(url);},1000);
+                  }
+                });
               } else {
                 var url=URL.createObjectURL(blob);
                 var a=document.createElement('a');
-                a.href=url; a.download=fileName; a.click();
+                a.href=url;a.download=fileName;a.click();
                 setTimeout(function(){URL.revokeObjectURL(url);},1000);
               }
+            },'image/png');
+          });
+        }
+        function downloadImage(){
+          html2canvas(document.getElementById('printWrap'),{scale:2,useCORS:true,backgroundColor:'#ffffff'}).then(function(canvas){
+            canvas.toBlob(function(blob){
+              var fileName='${titleText}_${consultClientName}.png';
+              var url=URL.createObjectURL(blob);
+              var a=document.createElement('a');
+              a.href=url;a.download=fileName;a.click();
+              setTimeout(function(){URL.revokeObjectURL(url);},1000);
             },'image/png');
           });
         }
@@ -1645,7 +1664,8 @@ export default function App() {
       </head><body>
         <div id="btns" style="padding:8px 16px;display:flex;gap:6px">
           <button onclick="window.print()" style="padding:6px 18px;background:#F97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:15px">🖨 인쇄</button>
-          <button onclick="saveImage()" style="padding:6px 18px;background:#1565c0;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:15px">📷 사진저장</button>
+          <button onclick="saveImage()" style="padding:6px 18px;background:#1565c0;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:15px">📤 공유하기</button>
+          <button onclick="downloadImage()" style="padding:6px 14px;background:#555;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:15px">📥 저장</button>
           <button onclick="window.close()" style="padding:6px 18px;background:#888;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:15px">✕ 닫기</button>
         </div>
         <div id="printWrap" style="padding:16px">
