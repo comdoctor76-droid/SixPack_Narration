@@ -317,6 +317,7 @@ ORG_RAW.trim().split("\n").forEach(line => {
 
 // ─── 버전 변경이력 ───
 const CHANGELOG = [
+  { ver: "v1.46", date: "2026.11.12", desc: "출력물 1년합계 열 2개 제거, 4열로 재배치 (보장내역/보장횟수/기존계약/신규제안)" },
   { ver: "v1.45", date: "2026.05.28", desc: "출력 팝업 공유하기 버튼 개선: 안드로이드 카카오톡 등 공유시트 연동, 저장 버튼 분리" },
   { ver: "v1.44", date: "2026.05.28", desc: "출력모달 성명 선택: 하단시트 → 인라인 검색+드롭다운으로 변경 (직접입력 겸용)" },
   { ver: "v1.43", date: "2026.05.21", desc: "관리자 비전센터 복수 선택(칩 토글), 점수 랜덤 수정을 테스트 탭으로 이동" },
@@ -1532,13 +1533,10 @@ export default function App() {
     const hasData = (item) => getAmt(item.id,"before") || getAmt(item.id,"after");
     const grandBefore = allItems.reduce((s, item) => s + calcTotal(item).before, 0);
     const grandAfter = allItems.reduce((s, item) => s + calcTotal(item).after, 0);
-    const rawBefore = allItems.filter(hasData).reduce((s, item) => s + Number(getAmt(item.id,"before") || 0), 0);
-    const rawAfter = allItems.filter(hasData).reduce((s, item) => s + Number(getAmt(item.id,"after") || 0), 0);
 
     // Print popup
     const printContent = (ovStaff, ovBranch, ovClient) => {
       const renderPrintRow = (item) => {
-        const t = calcTotal(item);
         const days = getAmt(item.id,"days");
         const count = getAmt(item.id,"count");
         const freqLabel = item.freqType === "daily" && days ? `${item.freq||""} / ${days}일` : item.freqType === "per_treatment" && count ? `${item.freq||""} / ${count}회` : (item.freq||"");
@@ -1549,8 +1547,6 @@ export default function App() {
           <td style="padding:3px 5px;font-size:13px;border-bottom:1px solid #f0f0f0;text-align:center;color:#777">${freqLabel}${dateLabel}</td>
           <td style="padding:3px 5px;font-size:14px;border-bottom:1px solid #f0f0f0;text-align:right;white-space:nowrap">${bv ? Number(bv).toLocaleString()+"만" : ""}</td>
           <td style="padding:3px 5px;font-size:14px;border-bottom:1px solid #f0f0f0;text-align:right;white-space:nowrap">${av ? Number(av).toLocaleString()+"만" : ""}</td>
-          <td style="padding:3px 5px;font-size:14px;border-bottom:1px solid #f0f0f0;text-align:right;color:#c00;white-space:nowrap">${t.before > 0 ? t.before.toLocaleString()+"만" : ""}</td>
-          <td style="padding:3px 5px;font-size:14px;border-bottom:1px solid #f0f0f0;text-align:right;color:#1565c0;white-space:nowrap">${t.after > 0 ? t.after.toLocaleString()+"만" : ""}</td>
         </tr>`;
       };
       const catSection = groupData ? groupData.categories.map(cat => {
@@ -1561,13 +1557,13 @@ export default function App() {
         return `<tr style="background:#fff8f0"><td colspan="2" style="padding:4px 6px;font-size:14px;font-weight:700;color:#c2440c">${cat.cat}</td>
           <td style="padding:4px 5px;font-size:14px;font-weight:700;text-align:right;color:#c00">${cb>0?cb.toLocaleString()+"만":""}</td>
           <td style="padding:4px 5px;font-size:14px;font-weight:700;text-align:right;color:#1565c0">${ca>0?ca.toLocaleString()+"만":""}</td>
-          <td colspan="2"></td></tr>${items.map(renderPrintRow).join("")}`;
+          </tr>${items.map(renderPrintRow).join("")}`;
       }).join("") : "";
       const customPrint = customItems.filter(i=>i.label&&hasData(i));
       const customSec = customPrint.length ? `<tr style="background:#fff8f0"><td colspan="2" style="padding:4px 6px;font-size:14px;font-weight:700;color:#c2440c">추가 담보</td>
         <td style="text-align:right;padding:4px 5px;font-size:14px;color:#c00">${customPrint.reduce((s,i)=>s+calcTotal(i).before,0).toLocaleString()}만</td>
         <td style="text-align:right;padding:4px 5px;font-size:14px;color:#1565c0">${customPrint.reduce((s,i)=>s+calcTotal(i).after,0).toLocaleString()}만</td>
-        <td colspan="2"></td></tr>${customPrint.map(renderPrintRow).join("")}` : "";
+        </tr>${customPrint.map(renderPrintRow).join("")}` : "";
       const staffName = (ovStaff) || (nameInput==="__MANUAL__"?manualNameInput:nameInput);
       const titleText = groupData?groupData.label:"";
       // 주요치료비 합산 내역 HTML 생성
@@ -1675,21 +1671,17 @@ export default function App() {
           <div style="font-size:14px;color:#555">고객명: <b>${ovClient||consultClientName}</b> &nbsp;|&nbsp; 치료년수: <b>${years}년</b></div>
           <div style="font-size:13px;color:#888">담당: ${ovBranch||selBranch} ${staffName}</div>
         </div>
-        <table><colgroup><col style="width:30%"><col style="width:18%"><col style="width:13%"><col style="width:13%"><col style="width:13%"><col style="width:13%"></colgroup><thead><tr style="background:#F97316;color:#fff">
+        <table><colgroup><col style="width:38%"><col style="width:22%"><col style="width:20%"><col style="width:20%"></colgroup><thead><tr style="background:#F97316;color:#fff">
           <th style="padding:4px 6px;font-size:13px;text-align:left">보장내역</th>
           <th style="padding:4px 5px;font-size:13px;text-align:center">보장횟수 / 출시일</th>
           <th style="padding:4px 5px;font-size:13px;text-align:right">기존계약(만원)</th>
           <th style="padding:4px 5px;font-size:13px;text-align:right">신규제안(만원)</th>
-          <th style="padding:4px 5px;font-size:13px;text-align:right">${years}년합계(기존)</th>
-          <th style="padding:4px 5px;font-size:13px;text-align:right">${years}년합계(신규)</th>
         </tr></thead>
         <tbody>${catSection}${customSec}</tbody>
         <tfoot><tr style="background:#FFF3E0;font-weight:700">
           <td colspan="2" style="padding:4px 6px;font-size:14px">합계</td>
-          <td style="padding:4px 5px;font-size:14px;text-align:right;color:#c00;white-space:nowrap">${rawBefore > 0 ? rawBefore.toLocaleString()+"만" : ""}</td>
-          <td style="padding:4px 5px;font-size:14px;text-align:right;color:#1565c0;white-space:nowrap">${rawAfter > 0 ? rawAfter.toLocaleString()+"만" : ""}</td>
-          <td style="padding:4px 5px;font-size:15px;text-align:right;color:#c00;white-space:nowrap">${grandBefore.toLocaleString()}만원</td>
-          <td style="padding:4px 5px;font-size:15px;text-align:right;color:#1565c0;white-space:nowrap">${grandAfter.toLocaleString()}만원</td>
+          <td style="padding:4px 5px;font-size:15px;text-align:right;color:#c00;white-space:nowrap">${grandBefore > 0 ? grandBefore.toLocaleString()+"만원" : ""}</td>
+          <td style="padding:4px 5px;font-size:15px;text-align:right;color:#1565c0;white-space:nowrap">${grandAfter > 0 ? grandAfter.toLocaleString()+"만원" : ""}</td>
         </tr></tfoot></table>
         ${breakdownHtml}
         <div style="margin-top:8px;font-size:12px;color:#aaa">※ 금액단위:만원 / 최초1회한=1회 / 연간·치료당=×${years}년 / 일당=일수×${years}년</div>
