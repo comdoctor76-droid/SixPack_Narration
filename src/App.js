@@ -317,6 +317,7 @@ ORG_RAW.trim().split("\n").forEach(line => {
 
 // ─── 버전 변경이력 ───
 const CHANGELOG = [
+  { ver: "v1.47", date: "2026.11.13", desc: "출력물 카테고리 합계·하단 합계를 행 표시값 기준(raw 합산)으로 수정 — 연간배수 불일치 오류 해결" },
   { ver: "v1.46", date: "2026.11.12", desc: "출력물 1년합계 열 2개 제거, 4열로 재배치 (보장내역/보장횟수/기존계약/신규제안)" },
   { ver: "v1.45", date: "2026.05.28", desc: "출력 팝업 공유하기 버튼 개선: 안드로이드 카카오톡 등 공유시트 연동, 저장 버튼 분리" },
   { ver: "v1.44", date: "2026.05.28", desc: "출력모달 성명 선택: 하단시트 → 인라인 검색+드롭다운으로 변경 (직접입력 겸용)" },
@@ -1552,8 +1553,8 @@ export default function App() {
       const catSection = groupData ? groupData.categories.map(cat => {
         const items = cat.items.filter(hasData);
         if (!items.length) return "";
-        const cb = items.reduce((s,i)=>s+calcTotal(i).before,0);
-        const ca = items.reduce((s,i)=>s+calcTotal(i).after,0);
+        const cb = items.reduce((s,i)=>s+Number(getAmt(i.id,"before")||0),0);
+        const ca = items.reduce((s,i)=>s+Number(getAmt(i.id,"after")||0),0);
         return `<tr style="background:#fff8f0"><td colspan="2" style="padding:4px 6px;font-size:14px;font-weight:700;color:#c2440c">${cat.cat}</td>
           <td style="padding:4px 5px;font-size:14px;font-weight:700;text-align:right;color:#c00">${cb>0?cb.toLocaleString()+"만":""}</td>
           <td style="padding:4px 5px;font-size:14px;font-weight:700;text-align:right;color:#1565c0">${ca>0?ca.toLocaleString()+"만":""}</td>
@@ -1561,11 +1562,13 @@ export default function App() {
       }).join("") : "";
       const customPrint = customItems.filter(i=>i.label&&hasData(i));
       const customSec = customPrint.length ? `<tr style="background:#fff8f0"><td colspan="2" style="padding:4px 6px;font-size:14px;font-weight:700;color:#c2440c">추가 담보</td>
-        <td style="text-align:right;padding:4px 5px;font-size:14px;color:#c00">${customPrint.reduce((s,i)=>s+calcTotal(i).before,0).toLocaleString()}만</td>
-        <td style="text-align:right;padding:4px 5px;font-size:14px;color:#1565c0">${customPrint.reduce((s,i)=>s+calcTotal(i).after,0).toLocaleString()}만</td>
+        <td style="text-align:right;padding:4px 5px;font-size:14px;color:#c00">${customPrint.reduce((s,i)=>s+Number(getAmt(i.id,"before")||0),0).toLocaleString()}만</td>
+        <td style="text-align:right;padding:4px 5px;font-size:14px;color:#1565c0">${customPrint.reduce((s,i)=>s+Number(getAmt(i.id,"after")||0),0).toLocaleString()}만</td>
         </tr>${customPrint.map(renderPrintRow).join("")}` : "";
       const staffName = (ovStaff) || (nameInput==="__MANUAL__"?manualNameInput:nameInput);
       const titleText = groupData?groupData.label:"";
+      const printRawBefore = allItems.filter(hasData).reduce((s,i)=>s+Number(getAmt(i.id,"before")||0),0);
+      const printRawAfter  = allItems.filter(hasData).reduce((s,i)=>s+Number(getAmt(i.id,"after")||0),0);
       // 주요치료비 합산 내역 HTML 생성
       const MAJOR_IDS_P = ["ca_t13","ca_t13b","ca_t14","ca_t14b","ca_t14c"];
       const majorItemsP = allItems.filter(i => MAJOR_IDS_P.includes(i.id) && hasData(i));
@@ -1680,8 +1683,8 @@ export default function App() {
         <tbody>${catSection}${customSec}</tbody>
         <tfoot><tr style="background:#FFF3E0;font-weight:700">
           <td colspan="2" style="padding:4px 6px;font-size:14px">합계</td>
-          <td style="padding:4px 5px;font-size:15px;text-align:right;color:#c00;white-space:nowrap">${grandBefore > 0 ? grandBefore.toLocaleString()+"만원" : ""}</td>
-          <td style="padding:4px 5px;font-size:15px;text-align:right;color:#1565c0;white-space:nowrap">${grandAfter > 0 ? grandAfter.toLocaleString()+"만원" : ""}</td>
+          <td style="padding:4px 5px;font-size:15px;text-align:right;color:#c00;white-space:nowrap">${printRawBefore > 0 ? printRawBefore.toLocaleString()+"만원" : ""}</td>
+          <td style="padding:4px 5px;font-size:15px;text-align:right;color:#1565c0;white-space:nowrap">${printRawAfter > 0 ? printRawAfter.toLocaleString()+"만원" : ""}</td>
         </tr></tfoot></table>
         ${breakdownHtml}
         <div style="margin-top:8px;font-size:12px;color:#aaa">※ 금액단위:만원 / 최초1회한=1회 / 연간·치료당=×${years}년 / 일당=일수×${years}년</div>
